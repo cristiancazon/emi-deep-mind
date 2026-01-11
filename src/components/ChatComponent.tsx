@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Send, Bot, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -8,10 +8,20 @@ export default function ChatComponent() {
     const { user } = useAuth();
     const router = useRouter();
     const [input, setInput] = useState("");
+
+    // Initialize with a generic message, update in useEffect when user loads
     const [messages, setMessages] = useState<{ role: 'user' | 'model', content: string }[]>([
-        { role: 'model', content: 'Hello! I am Gemini. How can I help you today?' }
+        { role: 'model', content: 'Hello! I am Gemini. Loading your profile...' }
     ]);
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            setMessages([
+                { role: 'model', content: `Hello ${user.displayName?.split(' ')[0] || 'there'}! I am Emi. How can I help you today?` }
+            ]);
+        }
+    }, [user]);
 
     const sendMessage = async () => {
         if (!input.trim()) return;
@@ -26,10 +36,18 @@ export default function ChatComponent() {
         setIsLoading(true);
 
         try {
+            const token = await user.getIdToken();
             const res = await fetch('/api/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMessage, userId: user.uid })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    message: userMessage,
+                    userId: user.uid,
+                    language: navigator.language
+                })
             });
 
             const data = await res.json();
