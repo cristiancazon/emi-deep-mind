@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Sidebar from "@/components/Sidebar";
 import ToolsPanel from "@/components/ToolsPanel";
 import ChatComponent from "@/components/ChatComponent";
+import LiveInterface from "@/components/LiveInterface";
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -16,6 +17,8 @@ export default function Home() {
       router.push("/login");
     }
   }, [user, loading, router]);
+
+  const [showLive, setShowLive] = useState(false);
 
   if (loading) {
     return (
@@ -37,8 +40,9 @@ export default function Home() {
       <main className="flex flex-1 flex-col">
         {/* Header could go here if needed, but Sidebar has title */}
         <ChatComponent />
+        {showLive && <LiveInterface onClose={() => setShowLive(false)} />}
       </main>
-      <ToolsPanel />
+      <ToolsPanel onToggleLive={() => setShowLive(true)} />
     </div>
   );
 }
