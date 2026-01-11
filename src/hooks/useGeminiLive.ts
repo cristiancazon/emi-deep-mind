@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 
 export function useGeminiLive() {
@@ -13,26 +13,38 @@ export function useGeminiLive() {
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const audioWorkletNodeRef = useRef<AudioWorkletNode | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const nextStartTimeRef = useRef<number>(0);
+
+    // Audio Playback Queue
+    const audioQueueRef = useRef<ArrayBuffer[]>([]);
+    const isPlayingRef = useRef(false);
 
     const connect = useCallback(async (videoRef: HTMLVideoElement | null) => {
         if (!user || wsRef.current) return;
 
         try {
+            setError(null);
+
             // Initialize AudioContext
             audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-                sampleRate: 24000 // Gemini output sample rate
+                sampleRate: 24000
             });
 
-            // Connect to WebSocket
             const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+            // Correct URL with BidiGenerateContent
             const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`);
 
-            ws.onopen = () => {
-                setIsConnected(true);
-                console.log('Connected to Gemini Live');
+            // Assign refs immediately
+            wsRef.current = ws;
 
-                // Send Setup Message
+            ws.onopen = () => {
+                if (ws !== wsRef.current) {
+                    ws.close();
+                    return;
+                }
+
+                console.log('Connected to Gemini Live');
+                setIsConnected(true);
+
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.0-flash-exp",
@@ -48,45 +60,55 @@ export function useGeminiLive() {
                 };
                 ws.send(JSON.stringify(setupMessage));
 
-                // Start Audio Capture
                 startAudioCapture(ws);
-
-                // Start Video Capture if ref provided
                 if (videoRef) {
                     startVideoCapture(ws, videoRef);
                 }
             };
 
             ws.onmessage = async (event) => {
+                if (ws !== wsRef.current) return;
+
                 let data;
-                if (event.data instanceof Blob) {
-                    data = JSON.parse(await event.data.text());
-                } else {
-                    data = JSON.parse(event.data);
+                try {
+                    if (event.data instanceof Blob) {
+                        data = JSON.parse(await event.data.text());
+                    } else {
+                        data = JSON.parse(event.data);
+                    }
+                } catch (e) {
+                    console.error("Error parsing WS message", e);
+                    return;
                 }
 
                 if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
                     const audioBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
-                    playAudio(audioBase64);
+                    queueAudio(audioBase64);
                 }
             };
 
             ws.onerror = (e) => {
+                if (ws !== wsRef.current) return;
                 console.error('WebSocket Error:', e);
-                setError("Connection error");
+                // setError("Connection error"); // Optional: suppress naive connection errors
             };
 
-            ws.onclose = () => {
-                setIsConnected(false);
-                setIsStreaming(false);
+            ws.onclose = (event) => {
+                if (ws !== wsRef.current) return;
+                console.log(`WebSocket Closed: Code=${event.code}`);
+
+                cleanup();
+                if (event.code !== 1000) {
+                    setError(`Connection closed (${event.code})`);
+                }
             };
 
-            wsRef.current = ws;
             setIsStreaming(true);
 
         } catch (err: any) {
             console.error(err);
             setError(err.message);
+            cleanup();
         }
     }, [user]);
 
@@ -105,17 +127,19 @@ export function useGeminiLive() {
             await audioContextRef.current.audioWorklet.addModule('/audio-processor.js');
 
             const source = audioContextRef.current.createMediaStreamSource(stream);
-            const processor = new AudioWorkletNode(audioContextRef.current, 'pcm-processor');
+            const processor = new AudioWorkletNode(audioContextRef.current, 'audio-processor', {
+                processorOptions: {
+                    sampleRate: 16000,
+                    bufferSize: 4096,
+                }
+            });
 
             processor.port.onmessage = (event) => {
                 if (ws.readyState === WebSocket.OPEN) {
-                    const pcmData = event.data;
-                    const base64Audio = arrayBufferToBase64(pcmData.buffer);
+                    const { pcmData, level } = event.data;
+                    setVolumeLevel(level / 100); // Normalize level
 
-                    // Simple volume calculation for visualizer
-                    const sum = pcmData.reduce((a: number, b: number) => a + Math.abs(b), 0);
-                    setVolumeLevel(sum / pcmData.length / 100); // Normalize roughly
-
+                    const base64Audio = arrayBufferToBase64(pcmData);
                     ws.send(JSON.stringify({
                         realtime_input: {
                             media_chunks: [{
@@ -140,11 +164,11 @@ export function useGeminiLive() {
 
         videoIntervalRef.current = setInterval(() => {
             if (ws.readyState === WebSocket.OPEN && videoRef.readyState === 4) {
-                canvas.width = videoRef.videoWidth * 0.5; // Scale down for bandwidth
+                canvas.width = videoRef.videoWidth * 0.5;
                 canvas.height = videoRef.videoHeight * 0.5;
                 if (ctx) {
                     ctx.drawImage(videoRef, 0, 0, canvas.width, canvas.height);
-                    const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
+                    const base64Image = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
 
                     ws.send(JSON.stringify({
                         realtime_input: {
@@ -156,16 +180,29 @@ export function useGeminiLive() {
                     }));
                 }
             }
-        }, 1000); // 1 FPS
+        }, 1000);
     };
 
-    const playAudio = (base64Audio: string) => {
-        if (!audioContextRef.current) return;
-
+    const queueAudio = (base64Audio: string) => {
         const audioData = base64ToArrayBuffer(base64Audio);
+        audioQueueRef.current.push(audioData);
+        if (!isPlayingRef.current) {
+            playNextChunk();
+        }
+    };
+
+    const playNextChunk = async () => {
+        if (audioQueueRef.current.length === 0 || !audioContextRef.current) {
+            isPlayingRef.current = false;
+            return;
+        }
+
+        isPlayingRef.current = true;
+        const audioData = audioQueueRef.current.shift()!;
+
+        // Convert PCM16 to Float32
         const float32Data = new Float32Array(audioData.byteLength / 2);
         const dataView = new DataView(audioData);
-
         for (let i = 0; i < float32Data.length; i++) {
             float32Data[i] = dataView.getInt16(i * 2, true) / 32768.0;
         }
@@ -177,14 +214,18 @@ export function useGeminiLive() {
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
 
-        const currentTime = audioContextRef.current.currentTime;
-        // Schedule next chunk to play exactly when the previous one ends
-        const startTime = Math.max(currentTime, nextStartTimeRef.current);
-        source.start(startTime);
-        nextStartTimeRef.current = startTime + audioBuffer.duration;
+        source.onended = () => {
+            playNextChunk();
+        };
+
+        source.start();
     };
 
-    const disconnect = useCallback(() => {
+    const cleanup = () => {
+        setIsConnected(false);
+        setIsStreaming(false);
+        setVolumeLevel(0);
+
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
@@ -201,9 +242,12 @@ export function useGeminiLive() {
             audioContextRef.current.close();
             audioContextRef.current = null;
         }
-        setIsStreaming(false);
-        setIsConnected(false);
-        setVolumeLevel(0);
+        audioQueueRef.current = [];
+        isPlayingRef.current = false;
+    };
+
+    const disconnect = useCallback(() => {
+        cleanup();
     }, []);
 
     // Helper functions
@@ -226,6 +270,10 @@ export function useGeminiLive() {
         }
         return bytes.buffer;
     }
+
+    useEffect(() => {
+        return () => disconnect();
+    }, [disconnect]);
 
     return {
         connect,
