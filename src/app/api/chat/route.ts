@@ -34,7 +34,16 @@ export async function POST(req: Request) {
 
         const userName = decodedToken.name || decodedToken.email?.split('@')[0] || "Usuario";
 
-        // Fetch User Profile (Long-term Memory)
+        // Fetch User Profile (Explicit Config)
+        const userConfigRef = adminDb.collection("users").doc(userId).collection("config").doc("profile");
+        const userConfigSnap = await userConfigRef.get();
+        const userConfig = userConfigSnap.exists ? userConfigSnap.data() : {};
+
+        const preferredLanguage = userConfig?.language || language || 'es'; // Prioritize saved config
+        const userLocation = userConfig?.location || "Unknown";
+        const userTags = userConfig?.tags && Array.isArray(userConfig.tags) ? userConfig.tags.join(', ') : "None";
+
+        // Fetch User Profile (Implicit Memory)
         const userProfileRef = adminDb.collection("users").doc(userId);
         const userProfileSnap = await userProfileRef.get();
         const userProfileData = userProfileSnap.exists ? userProfileSnap.data() : {};
@@ -62,20 +71,19 @@ export async function POST(req: Request) {
             model: "gemini-2.0-flash-exp",
             systemInstruction: `Eres Emi, un asistente personal altamente capaz.
             Estás hablando con: ${userName} (${decodedToken.email}).
-            Idioma del navegador: ${language || 'es'}.
             
-            MEMORIA A LARGO PLAZO (Lo que sabes del usuario):
+            CONTEXTO ACTUAL DEL USUARIO:
+            - Idioma preferido: ${preferredLanguage}
+            - Ubicación: ${userLocation}
+            - Etiquetas y Preferencias (Tags): ${userTags}
+            
+            MEMORIA A LARGO PLAZO (Lo que has aprendido del usuario):
             ${learnedMemory}
 
             TU OBJETIVO:
-            1. Responde de forma útil, cercana y personalizada.
-            2. Si el usuario te cuenta un dato personal NUEVO (gustos, nombre de mascotas, trabajo, etc.), DEBES extraerlo.
-            3. Para guardar un dato, añade al FINAL de tu respuesta un bloque JSON oculto así:
-            
-            [[UPDATE_MEMORY: {"key": "dato_a_guardar", "value": "valor_del_dato"}]]
-            
-            Ejemplo: Si dice "Me gusta el café", añade [[UPDATE_MEMORY: {"coffee": "likes"}]].
-            NO muestres este JSON al usuario, el sistema lo procesará.`
+            1. Responde de forma útil, cercana y personalizada, tomando MUY en cuenta su ubicación y etiquetas.
+            2. Si las etiquetas dicen "Experto en Python", responde con código avanzado. Si dicen "Principiante", explica paso a paso.
+            3. Si el usuario te cuenta un dato personal NUEVO, usa el bloque oculto [[UPDATE_MEMORY: ...]] al final.`
         });
 
         // Inject context into every message

@@ -18,8 +18,6 @@ export default function Home() {
     }
   }, [user, loading, router]);
 
-  const [showLive, setShowLive] = useState(false);
-
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-950 text-white">
@@ -40,9 +38,8 @@ export default function Home() {
       <main className="flex flex-1 flex-col">
         {/* Header could go here if needed, but Sidebar has title */}
         <ChatComponent />
-        {showLive && <LiveInterface onClose={() => setShowLive(false)} />}
       </main>
-      <ToolsPanel onToggleLive={() => setShowLive(true)} />
+      <ToolsPanel />
     </div>
   );
 }

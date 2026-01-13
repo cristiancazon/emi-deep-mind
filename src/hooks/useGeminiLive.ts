@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useUserProfile } from './useUserProfile';
 
 export function useGeminiLive() {
     const { user } = useAuth();
+    const { profile } = useUserProfile(); // Get active profile context
     const [isStreaming, setIsStreaming] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [volumeLevel, setVolumeLevel] = useState(0);
@@ -18,7 +20,8 @@ export function useGeminiLive() {
     const audioQueueRef = useRef<ArrayBuffer[]>([]);
     const isPlayingRef = useRef(false);
 
-    const connect = useCallback(async (videoRef: HTMLVideoElement | null) => {
+    // Changed: Accept an onMessage callback for history syncing
+    const connect = useCallback(async (videoRef: HTMLVideoElement | null, chatHistory: any[] = [], onMessageOrAudio?: (text: string | null, audio: string | null) => void) => {
         if (!user || wsRef.current) return;
 
         try {
@@ -30,10 +33,8 @@ export function useGeminiLive() {
             });
 
             const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-            // Correct URL with BidiGenerateContent
             const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`);
 
-            // Assign refs immediately
             wsRef.current = ws;
 
             ws.onopen = () => {
@@ -45,15 +46,28 @@ export function useGeminiLive() {
                 console.log('Connected to Gemini Live');
                 setIsConnected(true);
 
+                // Format recent history for context (Last 10 turns)
+                const historyContext = chatHistory.slice(-10).map(msg =>
+                    `${msg.role === 'user' ? 'User' : 'Emi'}: ${msg.content}`
+                ).join('\n');
+
+                const instructions = [
+                    `You are Emi, a helpful AI assistant. You are talking to ${user.displayName || 'User'}.`,
+                    `Current Context: Language=${profile.language}, Location=${profile.location || 'Unknown'}.`,
+                    `User Tags/Preferences: ${profile.tags.join(', ') || 'None'}.`,
+                    `IMPORTANT: You MUST speak in ${profile.language === 'es' ? 'Spanish (Español)' : profile.language} at all times, unless asked otherwise.`,
+                    `RECENT CHAT HISTORY (For Context):\n${historyContext}`
+                ].join('\n\n');
+
                 const setupMessage = {
                     setup: {
                         model: "models/gemini-2.0-flash-exp",
                         generation_config: {
-                            response_modalities: ["AUDIO"]
+                            response_modalities: ["AUDIO"] // Revert to AUDIO only to fix connection
                         },
                         system_instruction: {
                             parts: [{
-                                text: `You are Emi, a helpful AI assistant. You are talking to ${user.displayName || 'User'}.`
+                                text: instructions
                             }]
                         }
                     }
@@ -81,26 +95,38 @@ export function useGeminiLive() {
                     return;
                 }
 
-                if (data.serverContent?.modelTurn?.parts?.[0]?.inlineData) {
-                    const audioBase64 = data.serverContent.modelTurn.parts[0].inlineData.data;
-                    queueAudio(audioBase64);
+                const modelTurn = data.serverContent?.modelTurn;
+
+                if (modelTurn?.parts) {
+                    let audioData = null;
+                    let textData = null;
+
+                    for (const part of modelTurn.parts) {
+                        if (part.inlineData) {
+                            audioData = part.inlineData.data;
+                            queueAudio(audioData);
+                        }
+                        if (part.text) {
+                            textData = part.text;
+                        }
+                    }
+
+                    // Callback for UI/History synchronization
+                    if (onMessageOrAudio && (textData || audioData)) {
+                        onMessageOrAudio(textData, audioData);
+                    }
                 }
             };
 
             ws.onerror = (e) => {
                 if (ws !== wsRef.current) return;
                 console.error('WebSocket Error:', e);
-                // setError("Connection error"); // Optional: suppress naive connection errors
             };
 
             ws.onclose = (event) => {
                 if (ws !== wsRef.current) return;
                 console.log(`WebSocket Closed: Code=${event.code}`);
-
                 cleanup();
-                if (event.code !== 1000) {
-                    setError(`Connection closed (${event.code})`);
-                }
             };
 
             setIsStreaming(true);
@@ -110,7 +136,26 @@ export function useGeminiLive() {
             setError(err.message);
             cleanup();
         }
-    }, [user]);
+    }, [user, profile]);
+
+    // Dynamic Profile Update
+    useEffect(() => {
+        if (isConnected && wsRef.current?.readyState === WebSocket.OPEN) {
+            const updateMessage = {
+                client_content: {
+                    turns: [{
+                        role: "user",
+                        parts: [{
+                            text: `[SYSTEM UPDATE] configuration changed. New Language: ${profile.language}. New Location: ${profile.location}. New Tags: ${profile.tags.join(', ')}. Please adapt immediately.`
+                        }]
+                    }],
+                    turn_complete: true
+                }
+            };
+            wsRef.current.send(JSON.stringify(updateMessage));
+            console.log("Sent dynamic profile update to Gemini Live");
+        }
+    }, [profile, isConnected]);
 
     const startAudioCapture = async (ws: WebSocket) => {
         if (!audioContextRef.current) return;
