@@ -4,14 +4,20 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
 import LiveInterface from "./LiveInterface";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 
 export default function ChatComponent() {
     const { user } = useAuth();
+    const { profile, loading: profileLoading } = useUserProfile();
     const router = useRouter();
     const [input, setInput] = useState("");
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const { connect, disconnect, isStreaming, isConnected, volumeLevel, error: liveError } = useGeminiLive();
+
+
+    const { connect, disconnect, sendMessage: sendLiveMessage, isStreaming, isConnected, volumeLevel, error: liveError } = useGeminiLive();
     const [showLive, setShowLive] = useState(false);
 
     // Initialize with a generic message, update in useEffect when user loads
@@ -21,12 +27,21 @@ export default function ChatComponent() {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (user) {
+        if (user && !profileLoading) {
+            const firstName = user.displayName?.split(' ')[0] || 'there';
+
+            // Localized Greeting
+            let greeting = `Hello ${firstName}! I am Emi. How can I help you today?`;
+
+            if (profile.language === 'es') {
+                greeting = `¡Hola ${firstName}! Soy Emi. ¿En qué puedo ayudarte hoy?`;
+            }
+
             setMessages([
-                { role: 'model', content: `Hello ${user.displayName?.split(' ')[0] || 'there'}! I am Emi. How can I help you today?` }
+                { role: 'model', content: greeting }
             ]);
         }
-    }, [user]);
+    }, [user, profileLoading, profile.language]);
 
     const handleToggleLive = async () => {
         if (showLive) {
@@ -38,26 +53,18 @@ export default function ChatComponent() {
             setShowLive(true);
             setTimeout(() => {
                 // Pass current chat history to context AND a callback for live text
-                connect(videoRef.current, messages, (text, audio) => {
-                    if (text) {
-                        setMessages(prev => {
-                            const lastMsg = prev[prev.length - 1];
-                            const isLastMsgLive = lastMsg?.role === 'model' && lastMsg.content.startsWith('🎙️');
-
-                            if (isLastMsgLive) {
-                                // Update existing Live message
-                                const newContent = lastMsg.content + text;
-                                return [...prev.slice(0, -1), { ...lastMsg, content: newContent }];
-                            } else {
-                                // Create new Live message
-                                return [...prev, { role: 'model', content: `🎙️ ${text}` }];
-                            }
-                        });
-                    }
+                connect(videoRef.current, messages, async (text, audio, endTurn) => {
+                    // Transcription removed as requested.
+                    // The original code had a syntax error with an extra '}' here.
+                    // Assuming the intent was to remove the 'if (text)' block and keep the callback structure.
+                    // If there was other logic for 'endTurn' or 'audio', it should be added here.
+                    // For now, keeping it minimal as per the instruction's implied removal.
                 });
             }, 100);
         }
     };
+
+
 
     const sendMessage = async () => {
         if (!input.trim()) return;
@@ -69,6 +76,28 @@ export default function ChatComponent() {
         const userMessage = input;
         setInput("");
         setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+
+        // If in Live Mode, send text to Live Session as well
+        if (showLive && isConnected) {
+            sendLiveMessage(userMessage);
+            // We still want to save to DB? - The standard API call below saves to DB. 
+            // We should probably NOT call the standard API if we want the voice model to respond directly via audio?
+            // BUT, the user requirement is "sync". If we send to text API, we get text response. If we send to voice API, we get voice response.
+            // If we are in voice mode, we usually want voice response.
+            // Let's send to Live API AND save the USER message to DB manually here, to avoid double response (Text API + Voice API)
+
+            try {
+                const userRef = doc(db, "conversations", user.uid);
+                await updateDoc(userRef, {
+                    messages: arrayUnion(
+                        { role: 'user', content: userMessage, timestamp: new Date().toISOString() }
+                    )
+                });
+            } catch (e) { console.error("Error saving user message in live mode:", e); }
+
+            return; // Skip the standard REST API call
+        }
+
         setIsLoading(true);
 
         try {

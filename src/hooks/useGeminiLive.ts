@@ -20,20 +20,21 @@ export function useGeminiLive() {
     const audioQueueRef = useRef<ArrayBuffer[]>([]);
     const isPlayingRef = useRef(false);
 
-    // Changed: Accept an onMessage callback for history syncing
-    const connect = useCallback(async (videoRef: HTMLVideoElement | null, chatHistory: any[] = [], onMessageOrAudio?: (text: string | null, audio: string | null) => void) => {
+    // Changed: Accept an onMessage callback for history syncing. Added endTurn/interrupted callback
+    const connect = useCallback(async (videoRef: HTMLVideoElement | null, chatHistory: any[] = [], onMessageOrAudio?: (text: string | null, audio: string | null, endTurn?: boolean) => void) => {
         if (!user || wsRef.current) return;
 
         try {
             setError(null);
 
             // Initialize AudioContext
+            // Gemini Native Audio output is 24kHz. Input can remain 16kHz via getUserMedia constraints.
             audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
                 sampleRate: 24000
             });
 
             const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-            const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`);
+            const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`);
 
             wsRef.current = ws;
 
@@ -59,11 +60,15 @@ export function useGeminiLive() {
                     `RECENT CHAT HISTORY (For Context):\n${historyContext}`
                 ].join('\n\n');
 
+                // Full Setup Restored
                 const setupMessage = {
                     setup: {
-                        model: "models/gemini-2.0-flash-exp",
+                        model: "models/gemini-2.5-flash-native-audio-latest",
                         generation_config: {
-                            response_modalities: ["AUDIO"] // Revert to AUDIO only to fix connection
+                            response_modalities: ["AUDIO"],
+                            speech_config: {
+                                voice_config: { prebuilt_voice_config: { voice_name: "Aoede" } }
+                            }
                         },
                         system_instruction: {
                             parts: [{
@@ -74,10 +79,7 @@ export function useGeminiLive() {
                 };
                 ws.send(JSON.stringify(setupMessage));
 
-                startAudioCapture(ws);
-                if (videoRef) {
-                    startVideoCapture(ws, videoRef);
-                }
+                // Do NOT start capturing yet. Wait for server response.
             };
 
             ws.onmessage = async (event) => {
@@ -111,9 +113,22 @@ export function useGeminiLive() {
                         }
                     }
 
-                    // Callback for UI/History synchronization
-                    if (onMessageOrAudio && (textData || audioData)) {
-                        onMessageOrAudio(textData, audioData);
+                    // Callback for UI/History synchronization - AUDIO ONLY (Visualization/State)
+                    // Removed text transcription as requested.
+                    if (onMessageOrAudio && audioData) {
+                        // We still pass 'null' for text to satisfy signature or update signature? 
+                        // Let's just pass null for text.
+                        onMessageOrAudio(null, audioData, false);
+                    }
+                }
+
+                // Initial Handshake / Server Response Check
+                // If we haven't started streaming inputs yet, and we got a message (any message, meaning setup done), start capturing.
+                if (!mediaStreamRef.current && !error) {
+                    console.log("Handshake received (or first message), starting media capture");
+                    startAudioCapture(ws);
+                    if (videoRef) {
+                        startVideoCapture(ws, videoRef);
                     }
                 }
             };
@@ -125,7 +140,7 @@ export function useGeminiLive() {
 
             ws.onclose = (event) => {
                 if (ws !== wsRef.current) return;
-                console.log(`WebSocket Closed: Code=${event.code}`);
+                console.log(`WebSocket Closed: Code=${event.code}, Reason=${event.reason}`);
                 cleanup();
             };
 
@@ -138,22 +153,31 @@ export function useGeminiLive() {
         }
     }, [user, profile]);
 
-    // Dynamic Profile Update
+    // Track if strict updates are needed. Initial context is sent via setup message.
+    const initialProfileRef = useRef<string>(JSON.stringify(profile));
+
     useEffect(() => {
         if (isConnected && wsRef.current?.readyState === WebSocket.OPEN) {
-            const updateMessage = {
-                client_content: {
-                    turns: [{
-                        role: "user",
-                        parts: [{
-                            text: `[SYSTEM UPDATE] configuration changed. New Language: ${profile.language}. New Location: ${profile.location}. New Tags: ${profile.tags.join(', ')}. Please adapt immediately.`
-                        }]
-                    }],
-                    turn_complete: true
-                }
-            };
-            wsRef.current.send(JSON.stringify(updateMessage));
-            console.log("Sent dynamic profile update to Gemini Live");
+            const currentProfileStr = JSON.stringify(profile);
+
+            // Avoid sending update if profile hasn't meaningfully changed since mount/last update
+            // AND ensure we don't send one immediately if it matches the initial one that was part of instructions
+            if (currentProfileStr !== initialProfileRef.current) {
+                const updateMessage = {
+                    client_content: {
+                        turns: [{
+                            role: "user",
+                            parts: [{
+                                text: `[SYSTEM UPDATE] configuration changed. New Language: ${profile.language}. New Location: ${profile.location}. New Tags: ${profile.tags.join(', ')}. Please adapt immediately.`
+                            }]
+                        }],
+                        turn_complete: true
+                    }
+                };
+                wsRef.current.send(JSON.stringify(updateMessage));
+                console.log("Sent dynamic profile update to Gemini Live");
+                initialProfileRef.current = currentProfileStr;
+            }
         }
     }, [profile, isConnected]);
 
@@ -252,7 +276,7 @@ export function useGeminiLive() {
             float32Data[i] = dataView.getInt16(i * 2, true) / 32768.0;
         }
 
-        const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
+        const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000); // Output 24kHz
         audioBuffer.getChannelData(0).set(float32Data);
 
         const source = audioContextRef.current.createBufferSource();
@@ -320,9 +344,25 @@ export function useGeminiLive() {
         return () => disconnect();
     }, [disconnect]);
 
+    const sendMessage = useCallback((text: string) => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            const message = {
+                client_content: {
+                    turns: [{
+                        role: "user",
+                        parts: [{ text }]
+                    }],
+                    turn_complete: true
+                }
+            };
+            wsRef.current.send(JSON.stringify(message));
+        }
+    }, []);
+
     return {
         connect,
         disconnect,
+        sendMessage, // Exposed for text-to-voice sync
         isStreaming,
         isConnected,
         volumeLevel,
