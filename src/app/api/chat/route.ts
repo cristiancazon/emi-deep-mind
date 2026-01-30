@@ -1,8 +1,10 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { db } from "@/lib/firebase"; // Keep client SDK for now if needed, or switch to adminDb for better practices later.
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore"; // Client SDK imports
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { findRelevantTopic, saveTopicMemory } from "@/lib/memory";
+import { listCalendarEvents } from "@/lib/tools/calendar";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -21,7 +23,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { message, userId, language } = await req.json();
+        const { message, userId, language, googleAccessToken } = await req.json();
 
         if (!message || !userId) {
             return NextResponse.json({ error: "Missing message or userId" }, { status: 400 });
@@ -66,25 +68,75 @@ export async function POST(req: Request) {
             await setDoc(userRef, { messages: [] });
         }
 
-        // Use Gemini 2.0 Flash Experimental
+        // --- TOPIC MEMORY RETRIEVAL ---
+        const relevantTopic = await findRelevantTopic(userId, message);
+        let memoryContext = "";
+
+        if (relevantTopic) {
+            console.log(`Topic '${relevantTopic.name}' found for query: ${message}`);
+            memoryContext = `\nRECUERDO DEL TEMA '${relevantTopic.name}':\n${relevantTopic.summary}\n(Úsalo para dar continuidad a lo que ya sabes sobre esto).`;
+        } else {
+            console.log("No specific topic found for query:", message);
+        }
+        // -----------------------------
+
+        // Calendar Tool Declaration
+        const calendarTool = {
+            name: "list_calendar_events",
+            description: "Lists upcoming events from the user's Google Calendar. Use this to answer questions about the user's schedule, appointments, and what they have planned.",
+            parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    maxResults: {
+                        type: SchemaType.NUMBER,
+                        description: "Maximum number of events to return. Default is 10."
+                    }
+                }
+            }
+        };
+
+        // DEBUG: Log token status
+        console.log("🔍 DEBUG - Token status:", {
+            hasToken: !!googleAccessToken,
+            tokenLength: googleAccessToken?.length || 0,
+            tokenPreview: googleAccessToken ? googleAccessToken.substring(0, 20) + "..." : "NO TOKEN"
+        });
+
+        // Use Gemini 2.5 Flash
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash-exp",
-            systemInstruction: `Eres Emi, un asistente personal altamente capaz.
+            model: "gemini-2.5-flash",
+            systemInstruction: `Eres ${userConfig?.agentConfig?.name || 'Emi'}, un asistente personal altamente capaz.
             Estás hablando con: ${userName} (${decodedToken.email}).
+            
+            PERSONALIDAD:
+            - Nombre: ${userConfig?.agentConfig?.name || 'Emi'}
+            - Tono: ${userConfig?.agentConfig?.tone || 'Amigable'}
+            - Instrucciones Extra: ${userConfig?.agentConfig?.customInstructions || 'Ninguna'}
             
             CONTEXTO ACTUAL DEL USUARIO:
             - Idioma preferido: ${preferredLanguage}
             - Ubicación: ${userLocation}
             - Etiquetas y Preferencias (Tags): ${userTags}
             
-            MEMORIA A LARGO PLAZO (Lo que has aprendido del usuario):
+            MEMORIA A LARGO PLAZO (General):
             ${learnedMemory}
+            ${memoryContext}
+
+            ACCESO A HERRAMIENTAS:
+            - Tienes acceso al calendario de Google del usuario a través de la herramienta list_calendar_events. Úsala para responder preguntas sobre su agenda, citas y eventos próximos.
+            - IMPORTANTE: Siempre intenta usar la herramienta cuando te pregunten sobre el calendario, incluso si en conversaciones pasadas hubo problemas de permisos. La memoria puede estar desactualizada.
+            - Cuando respondas sobre eventos del calendario, SIEMPRE incluye al final un link a Google Calendar: https://calendar.google.com
 
             TU OBJETIVO:
-            1. Responde de forma útil, cercana y personalizada, tomando MUY en cuenta su ubicación y etiquetas.
-            2. Si las etiquetas dicen "Experto en Python", responde con código avanzado. Si dicen "Principiante", explica paso a paso.
-            3. Si el usuario te cuenta un dato personal NUEVO, usa el bloque oculto [[UPDATE_MEMORY: ...]] al final.`
+            1. Responde de forma útil, cercana y personalizada.
+            2. Si las etiquetas dicen "Experto...", adapta el nivel técnico.
+            3. Si encontraste un "RECUERDO DEL TEMA", demustra que recuerdas lo anterior.
+            4. Al mostrar eventos del calendario, incluye el link de Google Calendar para que el usuario pueda acceder directamente.`,
+            tools: googleAccessToken ? [{ functionDeclarations: [calendarTool as any] }] : undefined
         });
+
+        // DEBUG: Log tool registration
+        console.log("🔍 DEBUG - Tools registered:", googleAccessToken ? "YES (calendar tool included)" : "NO (no token, no tools)");
 
         // Inject context into every message
         const contextualizedMessage = `[System Context: User=${userName}, Email=${decodedToken.email}, Language=${language}, Memory=${learnedMemory}]. ${message}`;
@@ -95,7 +147,56 @@ export async function POST(req: Request) {
 
         const result = await chat.sendMessage(contextualizedMessage);
         const response = await result.response;
-        let text = response.text();
+
+        // Check if model wants to call a function
+        const functionCall = response.functionCalls()?.[0];
+        let text = "";
+
+        if (functionCall && functionCall.name === "list_calendar_events") {
+            console.log("Calendar tool called with args:", functionCall.args);
+
+            if (!googleAccessToken) {
+                text = "Lo siento, necesito que inicies sesión con Google para acceder a tu calendario.";
+            } else {
+                try {
+                    // Execute the calendar function
+                    const events = await listCalendarEvents(
+                        googleAccessToken,
+                        (functionCall.args as any).maxResults || 10
+                    );
+
+                    console.log("Calendar events retrieved:", events);
+
+                    // Send function response back to model
+                    const functionResponse = {
+                        functionResponse: {
+                            name: "list_calendar_events",
+                            response: { events }
+                        }
+                    };
+
+                    // Get final response from model with function result
+                    const finalResult = await chat.sendMessage([functionResponse as any]);
+                    text = finalResult.response.text();
+                } catch (error: any) {
+                    console.error("Calendar API error:", error);
+
+                    // Check if it's a permission error
+                    if (error.message.includes("Calendar access denied") || error.message.includes("403")) {
+                        text = "⚠️ No tengo permisos para acceder a tu calendario.\n\n" +
+                            "**Solución**: Necesitas cerrar sesión y volver a iniciar sesión con Google para otorgar permisos de calendario.\n\n" +
+                            "1. Haz clic en tu perfil y selecciona 'Cerrar sesión'\n" +
+                            "2. Vuelve a iniciar sesión con Google\n" +
+                            "3. Acepta los permisos de calendario cuando Google te lo pida\n" +
+                            "4. Intenta nuevamente";
+                    } else {
+                        text = `Error al acceder al calendario: ${error.message}`;
+                    }
+                }
+            }
+        } else {
+            text = response.text();
+        }
 
         // Check for Memory Updates
         const memoryMatch = text.match(/\[\[UPDATE_MEMORY: ({.*?})\]\]/);
@@ -125,6 +226,18 @@ export async function POST(req: Request) {
                 { role: 'model', content: text, timestamp: new Date().toISOString() }
             )
         });
+
+        // --- ASYNC MEMORY UPDATE ---
+        // Fire and forget (don't await) to speed up response
+        // In Vercel, use waitUntil(saveTopicMemory(...)) if available, or just call it:
+        const conversationalContext = [
+            ...history.slice(-3).map((h: any) => ({ role: h.role, content: h.parts[0].text })), // Last 3 messages for context
+            { role: 'user', content: message },
+            { role: 'model', content: text }
+        ];
+
+        saveTopicMemory(userId, conversationalContext).catch(err => console.error("Background memory update failed:", err));
+        // ---------------------------
 
         return NextResponse.json({ response: text });
     } catch (error: any) {

@@ -3,16 +3,28 @@ import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
+export interface AgentConfig {
+    name: string;
+    tone: 'friendly' | 'professional' | 'concise' | 'enthusiastic';
+    customInstructions: string;
+}
+
 export interface UserProfile {
     language: string;
     location: string;
     tags: string[];
+    agentConfig: AgentConfig; // New field
 }
 
 const DEFAULT_PROFILE: UserProfile = {
     language: 'es',
     location: '',
-    tags: []
+    tags: [],
+    agentConfig: {
+        name: 'Emi',
+        tone: 'friendly',
+        customInstructions: ''
+    }
 };
 
 export function useUserProfile() {

@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from './useUserProfile';
+import { calendarToolDeclaration, listCalendarEvents } from '@/lib/tools/calendar';
 
 export function useGeminiLive() {
-    const { user } = useAuth();
+    const { user, googleAccessToken } = useAuth();
     const { profile } = useUserProfile(); // Get active profile context
     const [isStreaming, setIsStreaming] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
@@ -26,6 +27,7 @@ export function useGeminiLive() {
 
         try {
             setError(null);
+            console.log("Connecting to Gemini Live... Token available:", !!googleAccessToken); // DEBUG LOG
 
             // Initialize AudioContext
             // Gemini Native Audio output is 24kHz. Input can remain 16kHz via getUserMedia constraints.
@@ -53,10 +55,13 @@ export function useGeminiLive() {
                 ).join('\n');
 
                 const instructions = [
-                    `You are Emi, a helpful AI assistant. You are talking to ${user.displayName || 'User'}.`,
+                    `You are ${profile.agentConfig?.name || 'Emi'}, a helpful AI assistant. You are talking to ${user.displayName || 'User'}.`,
                     `Current Context: Language=${profile.language}, Location=${profile.location || 'Unknown'}.`,
                     `User Tags/Preferences: ${profile.tags.join(', ') || 'None'}.`,
+                    `Personality/Tone: ${profile.agentConfig?.tone || 'friendly'}.`,
+                    `Custom Instructions: ${profile.agentConfig?.customInstructions || 'None'}.`,
                     `IMPORTANT: You MUST speak in ${profile.language === 'es' ? 'Spanish (Español)' : profile.language} at all times, unless asked otherwise.`,
+                    `CALENDAR ACCESS: You have access to the user's Google Calendar through the list_calendar_events tool. Use this tool to answer questions about their schedule, appointments, and upcoming events.`,
                     `RECENT CHAT HISTORY (For Context):\n${historyContext}`
                 ].join('\n\n');
 
@@ -74,9 +79,14 @@ export function useGeminiLive() {
                             parts: [{
                                 text: instructions
                             }]
-                        }
+                        },
+                        tools: [
+                            { google_search: {} }, // Built-in
+                            { function_declarations: [calendarToolDeclaration] } // Custom
+                        ]
                     }
                 };
+                console.log("Sending Setup Message with Tools:", JSON.stringify(setupMessage, null, 2)); // DEBUG LOG
                 ws.send(JSON.stringify(setupMessage));
 
                 // Do NOT start capturing yet. Wait for server response.
@@ -121,6 +131,63 @@ export function useGeminiLive() {
                         onMessageOrAudio(null, audioData, false);
                     }
                 }
+
+                // --- TOOL CALL HANDLING ---
+                if (modelTurn?.parts) {
+                    for (const part of modelTurn.parts) {
+                        if (part.functionCall) {
+                            const { name, args } = part.functionCall;
+                            console.log(`Tool Call Requested: ${name}`, args);
+
+                            if (name === 'list_calendar_events') {
+                                if (!googleAccessToken) {
+                                    console.error("No access token for Calendar tool");
+                                    // Notify model of auth failure
+                                    ws.send(JSON.stringify({
+                                        tool_response: {
+                                            function_responses: [{
+                                                response: { error: "User not authenticated with Google Calendar." },
+                                                id: name // Use 'id' from request if available in future schemas
+                                            }]
+                                        }
+                                    }));
+                                    continue;
+                                }
+
+                                try {
+                                    const events = await listCalendarEvents(googleAccessToken, args.maxResults);
+                                    console.log("Tool Result:", events);
+
+                                    // Send Result Back
+                                    const toolResponse = {
+                                        tool_response: {
+                                            function_responses: [{
+                                                response: { events: events },
+                                                id: name
+                                            }]
+                                        }
+                                    };
+                                    ws.send(JSON.stringify(toolResponse));
+
+                                    // Trigger model to continue (speak the result)
+                                    ws.send(JSON.stringify({ client_content: { turn_complete: true } }));
+
+                                } catch (e: any) {
+                                    console.error("Tool Execution Error:", e);
+                                    ws.send(JSON.stringify({
+                                        tool_response: {
+                                            function_responses: [{
+                                                response: { error: e.message },
+                                                id: name
+                                            }]
+                                        }
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                }
+                // --------------------------
 
                 // Initial Handshake / Server Response Check
                 // If we haven't started streaming inputs yet, and we got a message (any message, meaning setup done), start capturing.

@@ -9,7 +9,7 @@ import { db } from "@/lib/firebase";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 
 export default function ChatComponent() {
-    const { user } = useAuth();
+    const { user, googleAccessToken } = useAuth();
     const { profile, loading: profileLoading } = useUserProfile();
     const router = useRouter();
     const [input, setInput] = useState("");
@@ -30,11 +30,12 @@ export default function ChatComponent() {
         if (user && !profileLoading) {
             const firstName = user.displayName?.split(' ')[0] || 'there';
 
-            // Localized Greeting
-            let greeting = `Hello ${firstName}! I am Emi. How can I help you today?`;
+            // Localized Greeting with Agent Name
+            const agentName = profile.agentConfig?.name || 'Emi';
+            let greeting = `Hello ${firstName}! I am ${agentName}. How can I help you today?`;
 
             if (profile.language === 'es') {
-                greeting = `¡Hola ${firstName}! Soy Emi. ¿En qué puedo ayudarte hoy?`;
+                greeting = `¡Hola ${firstName}! Soy ${agentName}. ¿En qué puedo ayudarte hoy?`;
             }
 
             setMessages([
@@ -111,7 +112,8 @@ export default function ChatComponent() {
                 body: JSON.stringify({
                     message: userMessage,
                     userId: user.uid,
-                    language: navigator.language
+                    language: navigator.language,
+                    googleAccessToken: googleAccessToken
                 })
             });
 

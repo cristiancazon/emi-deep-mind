@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Hammer, Wrench, Radio, Settings, MapPin, Globe, Plus, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Hammer, Wrench, Radio, Settings, MapPin, Globe, Plus, X, Loader2, ChevronLeft, ChevronRight, Bot } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function ToolsPanel() {
@@ -125,6 +125,63 @@ export default function ToolsPanel() {
                                                 </span>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+
+                                {/* Agent Personality Section */}
+                                <div className="space-y-5">
+                                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                        Agent Persona
+                                        <div className="h-px flex-1 bg-gray-800"></div>
+                                    </h3>
+
+                                    {/* Agent Name */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
+                                            <Bot className="h-3.5 w-3.5" /> Agent Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={profile.agentConfig?.name || 'Emi'}
+                                            onChange={(e) => updateProfile({ agentConfig: { ...profile.agentConfig, name: e.target.value } })}
+                                            placeholder="Name (e.g. Jarvis)"
+                                            className="w-full bg-gray-900 border border-gray-800 text-sm text-gray-200 rounded-lg p-2.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder-gray-600"
+                                        />
+                                    </div>
+
+                                    {/* Tone */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
+                                            <Radio className="h-3.5 w-3.5" /> Tone
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['friendly', 'professional', 'concise', 'enthusiastic'].map((tone) => (
+                                                <button
+                                                    key={tone}
+                                                    onClick={() => updateProfile({ agentConfig: { ...profile.agentConfig, tone: tone as any } })}
+                                                    className={`px-3 py-2 text-xs font-medium rounded-lg border transition-all capitalized ${profile.agentConfig?.tone === tone
+                                                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
+                                                        : 'bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-700 hover:text-gray-300'
+                                                        }`}
+                                                >
+                                                    {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Custom Instructions */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
+                                            <Wrench className="h-3.5 w-3.5" /> Custom Instructions
+                                        </label>
+                                        <textarea
+                                            value={profile.agentConfig?.customInstructions || ''}
+                                            onChange={(e) => updateProfile({ agentConfig: { ...profile.agentConfig, customInstructions: e.target.value } })}
+                                            placeholder="e.g. Be funny, use emojis, explain like I'm 5..."
+                                            rows={3}
+                                            className="w-full bg-gray-900 border border-gray-800 text-sm text-gray-200 rounded-lg p-2.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder-gray-600 resize-none"
+                                        />
                                     </div>
                                 </div>
                             </div>
