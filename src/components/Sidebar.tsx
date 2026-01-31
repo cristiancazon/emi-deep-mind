@@ -1,6 +1,7 @@
 import { MessageSquarePlus, MessageSquare, Settings, User, LogOut, PanelLeftClose, PanelLeftOpen, Menu } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Sidebar() {
     const { user, logOut } = useAuth();
@@ -34,10 +35,10 @@ export default function Sidebar() {
                 {isOpen && (
                     <>
                         <div className="flex-1 overflow-y-auto p-4">
-                            <button className="flex w-full items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-colors whitespace-nowrap">
+                            <Link href="/" className="flex w-full items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-colors whitespace-nowrap">
                                 <MessageSquarePlus className="h-5 w-5 shrink-0" />
                                 <span>New Chat</span>
-                            </button>
+                            </Link>
                             <div className="mt-6">
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 whitespace-nowrap">Recent</h3>
                                 {/* Placeholder for history */}
@@ -59,10 +60,10 @@ export default function Sidebar() {
                                 <LogOut className="h-4 w-4 shrink-0" />
                                 <span>Sign Out</span>
                             </button>
-                            <div className="flex items-center gap-3 rounded-lg px-4 py-2 hover:bg-gray-900 cursor-pointer text-sm text-gray-400 transition-colors whitespace-nowrap">
+                            <Link href="/settings" className="flex items-center gap-3 rounded-lg px-4 py-2 hover:bg-gray-900 cursor-pointer text-sm text-gray-400 transition-colors whitespace-nowrap">
                                 <Settings className="h-4 w-4 shrink-0" />
                                 <span>Settings</span>
-                            </div>
+                            </Link>
                         </div>
                     </>
                 )}

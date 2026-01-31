@@ -33,9 +33,6 @@ export function useUserProfile() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Ref to hold the latest profile state for the debounced save function
-    const profileRef = useRef(profile);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Initial Load
     useEffect(() => {
@@ -58,32 +55,24 @@ export function useUserProfile() {
         return () => unsubscribe();
     }, [user]);
 
-    // Handle updates
+    // Handle updates (Local state only)
     const updateProfile = useCallback((updates: Partial<UserProfile>) => {
-        setProfile((prev) => {
-            const newProfile = { ...prev, ...updates };
-            profileRef.current = newProfile; // Update ref immediately
+        setProfile((prev) => ({ ...prev, ...updates }));
+    }, []);
 
-            // Trigger debounced save
-            if (user) {
-                setSaving(true);
-                if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-                timeoutRef.current = setTimeout(async () => {
-                    try {
-                        const profileDocRef = doc(db, 'users', user.uid, 'config', 'profile');
-                        await setDoc(profileDocRef, newProfile, { merge: true });
-                        setSaving(false);
-                    } catch (error) {
-                        console.error("Error saving profile:", error);
-                        setSaving(false);
-                    }
-                }, 1000); // 1.5s debounce
-            }
-
-            return newProfile;
-        });
-    }, [user]);
+    // Manual Save
+    const saveProfile = async () => {
+        if (!user) return;
+        setSaving(true);
+        try {
+            const profileDocRef = doc(db, 'users', user.uid, 'config', 'profile');
+            await setDoc(profileDocRef, profile, { merge: true });
+        } catch (error) {
+            console.error("Error saving profile:", error);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const addTag = (tag: string) => {
         if (!profile.tags.includes(tag)) {
@@ -100,6 +89,7 @@ export function useUserProfile() {
         loading,
         saving,
         updateProfile,
+        saveProfile,
         addTag,
         removeTag
     };

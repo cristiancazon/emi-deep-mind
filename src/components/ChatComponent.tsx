@@ -14,6 +14,7 @@ export default function ChatComponent() {
     const router = useRouter();
     const [input, setInput] = useState("");
     const videoRef = useRef<HTMLVideoElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 
 
@@ -25,6 +26,19 @@ export default function ChatComponent() {
         { role: 'model', content: 'Hello! I am Gemini. Loading your profile...' }
     ]);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = "56px"; // Reset to min height
+            const scrollHeight = textareaRef.current.scrollHeight;
+            const newHeight = Math.min(scrollHeight, 200);
+            textareaRef.current.style.height = `${newHeight}px`;
+
+            // Toggle scrollbar visibility
+            textareaRef.current.style.overflowY = scrollHeight > 200 ? "auto" : "hidden";
+        }
+    }, [input]);
 
     useEffect(() => {
         if (user && !profileLoading) {
@@ -155,7 +169,7 @@ export default function ChatComponent() {
                         className={`relative px-6 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center gap-2 ${showLive ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}
                     >
                         <Mic className="h-4 w-4" />
-                        <span>Voice</span>
+                        <span>Live</span>
                     </button>
                 </div>
             </div>
@@ -202,24 +216,33 @@ export default function ChatComponent() {
                         )}
                     </div>
 
-                    {/* Text Input Area (Standard) */}
+                    {/* Text Input Area (Fixed & Refined) */}
                     <div className="p-4 border-t border-gray-800 bg-gray-950/80 backdrop-blur-sm">
-                        <div className="relative mx-auto max-w-3xl">
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                                placeholder="Message Emi..."
-                                className="w-full rounded-2xl bg-gray-900 border border-gray-800 py-4 pl-6 pr-14 text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none transition-all shadow-inner"
-                            />
-                            <button
-                                onClick={sendMessage}
-                                disabled={!input.trim() || isLoading}
-                                className="absolute right-2 top-2 p-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-blue-500/20"
-                            >
-                                <Send className="h-5 w-5" />
-                            </button>
+                        <div className="relative mx-auto max-w-3xl flex items-end">
+                            <div className="relative flex-1 group">
+                                <textarea
+                                    ref={textareaRef}
+                                    rows={1}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            sendMessage();
+                                        }
+                                    }}
+                                    placeholder="Message Emi..."
+                                    className="w-full rounded-2xl bg-gray-900 border border-gray-800 py-4 pl-6 pr-[60px] text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:outline-none transition-all shadow-inner resize-none min-h-[56px] max-h-[200px] overflow-y-auto custom-scrollbar"
+                                    style={{ height: '56px' }}
+                                />
+                                <button
+                                    onClick={sendMessage}
+                                    disabled={!input.trim() || isLoading}
+                                    className="absolute right-2.5 bottom-2.5 p-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-blue-500/40 z-10"
+                                >
+                                    <Send className="h-5 w-5" />
+                                </button>
+                            </div>
                         </div>
                         <p className="text-center text-[10px] text-gray-600 mt-2 font-medium tracking-wide uppercase">AI can make mistakes. Verify important info.</p>
                     </div>
