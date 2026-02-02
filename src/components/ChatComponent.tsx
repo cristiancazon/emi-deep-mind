@@ -144,14 +144,14 @@ export default function ChatComponent() {
     };
 
     return (
-        <div className="flex flex-1 flex-col bg-gray-900 text-white relative h-[calc(100vh-64px)] lg:h-screen transition-colors duration-500">
+        <div className="flex flex-1 flex-col bg-background text-foreground relative h-[calc(100vh-64px)] lg:h-screen transition-colors duration-500">
 
             {/* Mode Switcher (Tabs) */}
-            <div className="flex justify-center p-4 border-b border-gray-800 bg-gray-950/50 backdrop-blur-sm z-10 shrink-0">
-                <div className="flex bg-gray-800/50 p-1 rounded-full relative">
+            <div className="flex justify-center p-4 border-b border-border-theme bg-surface/50 backdrop-blur-sm z-10 shrink-0">
+                <div className="flex bg-surface p-1 rounded-full relative border border-border-theme/50">
                     {/* Animated Background Indicator */}
                     <div
-                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-blue-600 rounded-full transition-all duration-300 ease-in-out shadow-lg ${showLive ? 'left-[calc(50%+2px)]' : 'left-1'}`}
+                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-full transition-all duration-300 ease-in-out shadow-lg ${showLive ? 'left-[calc(50%+2px)]' : 'left-1'}`}
                     />
 
                     <button
@@ -159,14 +159,14 @@ export default function ChatComponent() {
                             setShowLive(false);
                             disconnect(); // Ensure voice drops when switching to text
                         }}
-                        className={`relative px-6 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center gap-2 ${!showLive ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}
+                        className={`relative px-6 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center gap-2 ${!showLive ? 'text-white' : 'text-muted hover:text-foreground'}`}
                     >
                         <Bot className="h-4 w-4" />
                         <span>Chat</span>
                     </button>
                     <button
                         onClick={handleToggleLive}
-                        className={`relative px-6 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center gap-2 ${showLive ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}
+                        className={`relative px-6 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center gap-2 ${showLive ? 'text-white' : 'text-muted hover:text-foreground'}`}
                     >
                         <Mic className="h-4 w-4" />
                         <span>Live</span>
@@ -191,33 +191,33 @@ export default function ChatComponent() {
 
                 {/* Text Mode View */}
                 <div className={`absolute inset-0 flex flex-col transition-opacity duration-300 ${!showLive ? 'opacity-100 z-20' : 'opacity-0 z-0 pointer-events-none'}`}>
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                    <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-border-theme scrollbar-track-transparent">
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${msg.role === 'model' ? 'bg-blue-600' : 'bg-green-600'}`}>
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${msg.role === 'model' ? 'bg-primary/20 text-primary' : 'bg-green-600 text-white'}`}>
                                     {msg.role === 'model' ? <Bot className="h-5 w-5" /> : <UserIcon className="h-5 w-5" />}
                                 </div>
-                                <div className={`rounded-2xl px-5 py-3 max-w-[80%] shadow-sm ${msg.role === 'model' ? 'bg-gray-800 text-gray-100 rounded-tl-none border border-gray-700' : 'bg-blue-600 text-white rounded-tr-none'}`}>
+                                <div className={`rounded-2xl px-5 py-3 max-w-[80%] shadow-sm ${msg.role === 'model' ? 'bg-surface text-foreground rounded-tl-none border border-border-theme' : 'bg-primary text-white rounded-tr-none'}`}>
                                     <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                                 </div>
                             </div>
                         ))}
                         {isLoading && (
                             <div className="flex gap-4">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary">
                                     <Bot className="h-5 w-5" />
                                 </div>
-                                <div className="flex items-center gap-1 bg-gray-800 rounded-2xl px-5 py-3 rounded-tl-none border border-gray-700">
-                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                                <div className="flex items-center gap-1 bg-surface rounded-2xl px-5 py-3 rounded-tl-none border border-border-theme">
+                                    <span className="w-2 h-2 bg-muted rounded-full animate-bounce"></span>
+                                    <span className="w-2 h-2 bg-muted rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                                    <span className="w-2 h-2 bg-muted rounded-full animate-bounce [animation-delay:0.4s]"></span>
                                 </div>
                             </div>
                         )}
                     </div>
 
                     {/* Text Input Area (Fixed & Refined) */}
-                    <div className="p-4 border-t border-gray-800 bg-gray-950/80 backdrop-blur-sm">
+                    <div className="p-4 border-t border-border-theme bg-surface/80 backdrop-blur-sm">
                         <div className="relative mx-auto max-w-3xl flex items-end">
                             <div className="relative flex-1 group">
                                 <textarea
@@ -232,19 +232,19 @@ export default function ChatComponent() {
                                         }
                                     }}
                                     placeholder="Message Emi..."
-                                    className="w-full rounded-2xl bg-gray-900 border border-gray-800 py-4 pl-6 pr-[60px] text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:outline-none transition-all shadow-inner resize-none min-h-[56px] max-h-[200px] overflow-y-auto custom-scrollbar"
+                                    className="w-full rounded-2xl bg-background border border-border-theme py-4 pl-6 pr-[60px] text-foreground placeholder-muted focus:ring-2 focus:ring-primary/50 focus:border-primary focus:outline-none transition-all shadow-inner resize-none min-h-[56px] max-h-[200px] overflow-y-auto custom-scrollbar"
                                     style={{ height: '56px' }}
                                 />
                                 <button
                                     onClick={sendMessage}
                                     disabled={!input.trim() || isLoading}
-                                    className="absolute right-2.5 bottom-2.5 p-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-blue-500/40 z-10"
+                                    className="absolute right-2.5 bottom-2.5 p-2 rounded-xl bg-primary hover:opacity-90 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-primary/40 z-10"
                                 >
                                     <Send className="h-5 w-5" />
                                 </button>
                             </div>
                         </div>
-                        <p className="text-center text-[10px] text-gray-600 mt-2 font-medium tracking-wide uppercase">AI can make mistakes. Verify important info.</p>
+                        <p className="text-center text-[10px] text-muted mt-2 font-medium tracking-wide uppercase">AI can make mistakes. Verify important info.</p>
                     </div>
                 </div>
             </div>
