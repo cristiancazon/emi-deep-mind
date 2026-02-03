@@ -49,8 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const signInWithGoogle = async () => {
         try {
             const provider = new GoogleAuthProvider();
-            // Request read-only access to Calendar (more secure)
-            provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+            // Request full access to Calendar (for creating events)
+            provider.addScope('https://www.googleapis.com/auth/calendar');
 
             // Force Google to show consent screen again to ensure calendar permissions are requested
             provider.setCustomParameters({

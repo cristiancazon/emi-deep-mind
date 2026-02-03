@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Bot, User as UserIcon, Mic } from "lucide-react";
+import { Send, Bot, User as UserIcon, Mic, MicOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
@@ -7,6 +7,8 @@ import LiveInterface from "./LiveInterface";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function ChatComponent() {
     const { user, googleAccessToken } = useAuth();
@@ -80,6 +82,47 @@ export default function ChatComponent() {
     };
 
 
+
+
+    const [isListening, setIsListening] = useState(false);
+
+    const handleVoiceInput = () => {
+        if (isListening) {
+            setIsListening(false);
+            window.speechSynthesis.cancel();
+            return;
+        }
+
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Su navegador no soporta reconocimiento de voz. Por favor use Chrome o Edge.");
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = profile.language === 'es' ? 'es-ES' : 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        setIsListening(true);
+
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setInput(prev => prev + (prev ? " " : "") + transcript);
+            setIsListening(false);
+        };
+
+        recognition.onerror = (event: any) => {
+            console.error("Speech recognition error", event.error);
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognition.start();
+    };
 
     const sendMessage = async () => {
         if (!input.trim()) return;
@@ -197,8 +240,37 @@ export default function ChatComponent() {
                                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${msg.role === 'model' ? 'bg-primary/20 text-primary' : 'bg-green-600 text-white'}`}>
                                     {msg.role === 'model' ? <Bot className="h-5 w-5" /> : <UserIcon className="h-5 w-5" />}
                                 </div>
-                                <div className={`rounded-2xl px-5 py-3 max-w-[80%] shadow-sm ${msg.role === 'model' ? 'bg-surface text-foreground rounded-tl-none border border-border-theme' : 'bg-primary text-white rounded-tr-none'}`}>
-                                    <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                <div className={`rounded-2xl px-5 py-3 max-w-[80%] shadow-sm leading-relaxed whitespace-pre-wrap break-words ${msg.role === 'model' ? 'bg-surface text-foreground rounded-tl-none border border-border-theme' : 'bg-primary text-white rounded-tr-none'}`}>
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            a: ({ node, ...props }: any) => (
+                                                <a
+                                                    {...props}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="font-medium underline underline-offset-2 hover:opacity-80 transition-opacity"
+                                                />
+                                            ),
+                                            p: ({ node, ...props }: any) => (
+                                                <p {...props} className="mb-2 last:mb-0" />
+                                            ),
+                                            ul: ({ node, ...props }: any) => (
+                                                <ul {...props} className="list-disc pl-5 mb-2 space-y-1" />
+                                            ),
+                                            ol: ({ node, ...props }: any) => (
+                                                <ol {...props} className="list-decimal pl-5 mb-2 space-y-1" />
+                                            ),
+                                            li: ({ node, ...props }: any) => (
+                                                <li {...props} />
+                                            ),
+                                            strong: ({ node, ...props }: any) => (
+                                                <strong {...props} className="font-bold" />
+                                            )
+                                        }}
+                                    >
+                                        {msg.content}
+                                    </ReactMarkdown>
                                 </div>
                             </div>
                         ))}
@@ -232,9 +304,16 @@ export default function ChatComponent() {
                                         }
                                     }}
                                     placeholder="Message Emi..."
-                                    className="w-full rounded-2xl bg-background border border-border-theme py-4 pl-6 pr-[60px] text-foreground placeholder-muted focus:ring-2 focus:ring-primary/50 focus:border-primary focus:outline-none transition-all shadow-inner resize-none min-h-[56px] max-h-[200px] overflow-y-auto custom-scrollbar"
+                                    className="w-full rounded-2xl bg-background border border-border-theme py-4 pl-6 pr-[110px] text-foreground placeholder-muted focus:ring-2 focus:ring-primary/50 focus:border-primary focus:outline-none transition-all shadow-inner resize-none min-h-[56px] max-h-[200px] overflow-y-auto custom-scrollbar"
                                     style={{ height: '56px' }}
                                 />
+                                <button
+                                    onClick={handleVoiceInput}
+                                    className={`absolute right-12 bottom-2.5 p-2 rounded-xl hover:opacity-90 transition-all shadow-lg z-10 ${isListening ? 'bg-red-500 text-white animate-pulse shadow-red-500/40' : 'bg-surface text-muted hover:text-foreground border border-border-theme'}`}
+                                    title={isListening ? "Stop Dictation" : "Start Dictation"}
+                                >
+                                    {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                                </button>
                                 <button
                                     onClick={sendMessage}
                                     disabled={!input.trim() || isLoading}

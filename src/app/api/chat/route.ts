@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { findRelevantTopic, saveTopicMemory } from "@/lib/memory";
-import { listCalendarEvents } from "@/lib/tools/calendar";
+import { listCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, calendarTools } from "@/lib/tools/calendar";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -80,21 +80,6 @@ export async function POST(req: Request) {
         }
         // -----------------------------
 
-        // Calendar Tool Declaration
-        const calendarTool = {
-            name: "list_calendar_events",
-            description: "Lists upcoming events from the user's Google Calendar. Use this to answer questions about the user's schedule, appointments, and what they have planned.",
-            parameters: {
-                type: SchemaType.OBJECT,
-                properties: {
-                    maxResults: {
-                        type: SchemaType.NUMBER,
-                        description: "Maximum number of events to return. Default is 10."
-                    }
-                }
-            }
-        };
-
         // DEBUG: Log token status
         console.log("🔍 DEBUG - Token status:", {
             hasToken: !!googleAccessToken,
@@ -118,13 +103,17 @@ export async function POST(req: Request) {
             - Ubicación: ${userLocation}
             - Etiquetas y Preferencias (Tags): ${userTags}
             
+            CONTEXTO TEMPORAL:
+            - Fecha y Hora actual: ${new Date().toLocaleString('es-ES', { timeZone: 'America/Argentina/Buenos_Aires' })}
+            - Día de la semana: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'America/Argentina/Buenos_Aires' })}
+            
             MEMORIA A LARGO PLAZO (General):
             ${learnedMemory}
             ${memoryContext}
 
             ACCESO A HERRAMIENTAS:
-            - Tienes acceso al calendario de Google del usuario a través de la herramienta list_calendar_events. Úsala para responder preguntas sobre su agenda, citas y eventos próximos.
-            - IMPORTANTE: Siempre intenta usar la herramienta cuando te pregunten sobre el calendario, incluso si en conversaciones pasadas hubo problemas de permisos. La memoria puede estar desactualizada.
+            - Tienes acceso al calendario de Google del usuario para listar, crear, modificar y eliminar eventos.
+            - IMPORTANTE: Siempre intenta usar la herramienta cuando te pregunten sobre el calendario, incluso si en conversaciones pasadas hubo problemas de permisos.
             - Cuando respondas sobre eventos del calendario, SIEMPRE incluye al final un link a Google Calendar: https://calendar.google.com
 
             TU OBJETIVO:
@@ -132,14 +121,14 @@ export async function POST(req: Request) {
             2. Si las etiquetas dicen "Experto...", adapta el nivel técnico.
             3. Si encontraste un "RECUERDO DEL TEMA", demustra que recuerdas lo anterior.
             4. Al mostrar eventos del calendario, incluye el link de Google Calendar para que el usuario pueda acceder directamente.`,
-            tools: googleAccessToken ? [{ functionDeclarations: [calendarTool as any] }] : undefined
+            tools: googleAccessToken ? [{ functionDeclarations: calendarTools as any }] : undefined
         });
 
         // DEBUG: Log tool registration
-        console.log("🔍 DEBUG - Tools registered:", googleAccessToken ? "YES (calendar tool included)" : "NO (no token, no tools)");
+        console.log("🔍 DEBUG - Tools registered:", googleAccessToken ? "YES (calendar tools included)" : "NO (no token, no tools)");
 
         // Inject context into every message
-        const contextualizedMessage = `[System Context: User=${userName}, Email=${decodedToken.email}, Language=${language}, Memory=${learnedMemory}]. ${message}`;
+        const contextualizedMessage = `[System Context: User=${userName}, DateTime=${new Date().toISOString()}, Language=${language}, Memory=${learnedMemory}]. ${message}`;
 
         const chat = model.startChat({
             history: history,
@@ -149,29 +138,44 @@ export async function POST(req: Request) {
         const response = await result.response;
 
         // Check if model wants to call a function
-        const functionCall = response.functionCalls()?.[0];
+        const functionCalls = response.functionCalls();
         let text = "";
 
-        if (functionCall && functionCall.name === "list_calendar_events") {
-            console.log("Calendar tool called with args:", functionCall.args);
+        if (functionCalls && functionCalls.length > 0) {
+            const functionCall = functionCalls[0];
+            const { name, args } = functionCall;
+            console.log(`Tool called: ${name}`, args);
 
             if (!googleAccessToken) {
                 text = "Lo siento, necesito que inicies sesión con Google para acceder a tu calendario.";
             } else {
                 try {
-                    // Execute the calendar function
-                    const events = await listCalendarEvents(
-                        googleAccessToken,
-                        (functionCall.args as any).maxResults || 10
-                    );
+                    let toolResult;
 
-                    console.log("Calendar events retrieved:", events);
+                    switch (name) {
+                        case 'list_calendar_events':
+                            toolResult = await listCalendarEvents(googleAccessToken, (args as any).maxResults || 10);
+                            break;
+                        case 'add_calendar_event':
+                            toolResult = await addCalendarEvent(googleAccessToken, args as any);
+                            break;
+                        case 'update_calendar_event':
+                            toolResult = await updateCalendarEvent(googleAccessToken, (args as any).eventId, args as any);
+                            break;
+                        case 'delete_calendar_event':
+                            toolResult = await deleteCalendarEvent(googleAccessToken, (args as any).eventId);
+                            break;
+                        default:
+                            throw new Error(`Unknown tool: ${name}`);
+                    }
+
+                    console.log(`Tool ${name} result:`, toolResult);
 
                     // Send function response back to model
                     const functionResponse = {
                         functionResponse: {
-                            name: "list_calendar_events",
-                            response: { events }
+                            name: name,
+                            response: { result: toolResult }
                         }
                     };
 
@@ -183,14 +187,13 @@ export async function POST(req: Request) {
 
                     // Check if it's a permission error
                     if (error.message.includes("Calendar access denied") || error.message.includes("403")) {
-                        text = "⚠️ No tengo permisos para acceder a tu calendario.\n\n" +
-                            "**Solución**: Necesitas cerrar sesión y volver a iniciar sesión con Google para otorgar permisos de calendario.\n\n" +
+                        text = "⚠️ No tengo permisos para editar tu calendario.\n\n" +
+                            "**Solución**: Como hemos actualizado mis capacidades, necesito que vuelvas a conectar tu cuenta.\n\n" +
                             "1. Haz clic en tu perfil y selecciona 'Cerrar sesión'\n" +
                             "2. Vuelve a iniciar sesión con Google\n" +
-                            "3. Acepta los permisos de calendario cuando Google te lo pida\n" +
-                            "4. Intenta nuevamente";
+                            "3. Acepta los nuevos permisos de calendario\n";
                     } else {
-                        text = `Error al acceder al calendario: ${error.message}`;
+                        text = `Error al ejecutar la acción en el calendario: ${error.message}`;
                     }
                 }
             }
