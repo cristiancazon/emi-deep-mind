@@ -7,6 +7,7 @@ import { findRelevantTopic, saveTopicMemory } from "@/lib/memory";
 import { listCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, calendarTools } from "@/lib/tools/calendar";
 import { getGoogleNews, newsTools } from "@/lib/tools/news";
 import { listEmails, searchEmails, createEmailDraft, sendEmail, gmailTools } from "@/lib/tools/gmail";
+import { searchGoogle, searchTools } from "@/lib/tools/search";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -130,14 +131,13 @@ export async function POST(req: Request) {
             6. GMAIL: Puedes leer y enviar correos. ANTES de enviar un correo (tool 'send_email'), SIEMPRE pide confirmación explícita al usuario mostrándole el borrador.
                - Para mostrar el borrador, ENVUÉLVELO en una cita (blockquote) usando el símbolo > al inicio de cada línea.
                - DENTRO del borrador, usa etiquetas HTML simples (<b>, <i>, <br>, <p>) para darle formato enriquecido.
-               - Ejemplo de respuesta:
-                 "Aquí tienes el borrador:
-                 > **Asunto**: Presupuesto
-                 >
-                 > <p>Hola Juan,</p><p>Te adjunto lo solicitado...</p>"`,
+            7. BÚSQUEDA WEB:
+               - PRIORIDAD: Si el usuario busca "noticias", "qué pasó", "actualidad", SIEMPRE usa 'get_google_news' PRIMERO.
+               - Solo usa 'search_google' (Búsqueda general) si buscas datos históricos, definiciones, tutoriales o si 'get_google_news' no dio resultados relevantes.`,
             tools: [{
                 functionDeclarations: [
                     ...newsTools,
+                    ...searchTools,
                     ...(googleAccessToken ? [...calendarTools, ...gmailTools] : [])
                 ] as any
             }]
@@ -181,10 +181,14 @@ export async function POST(req: Request) {
                         case 'update_calendar_event':
                             toolResult = await updateCalendarEvent(googleAccessToken, (args as any).eventId, args as any);
                             break;
+                        case 'delete_calendar_event':
                             toolResult = await deleteCalendarEvent(googleAccessToken, (args as any).eventId);
                             break;
                         case 'get_google_news':
                             toolResult = await getGoogleNews((args as any).query);
+                            break;
+                        case 'search_google':
+                            toolResult = await searchGoogle((args as any).query);
                             break;
                         case 'list_emails':
                             toolResult = await listEmails(googleAccessToken, (args as any).maxResults);
