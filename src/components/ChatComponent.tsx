@@ -6,9 +6,10 @@ import { useGeminiLive } from "@/hooks/useGeminiLive";
 import LiveInterface from "./LiveInterface";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 
 export default function ChatComponent() {
     const { user, googleAccessToken } = useAuth();
@@ -44,19 +45,35 @@ export default function ChatComponent() {
 
     useEffect(() => {
         if (user && !profileLoading) {
-            const firstName = user.displayName?.split(' ')[0] || 'there';
+            const loadHistory = async () => {
+                try {
+                    const userRef = doc(db, "conversations", user.uid);
+                    const docSnap = await getDoc(userRef);
 
-            // Localized Greeting with Agent Name
-            const agentName = profile.agentConfig?.name || 'Emi';
-            let greeting = `Hello ${firstName}! I am ${agentName}. How can I help you today?`;
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+                            setMessages(data.messages);
+                            return;
+                        }
+                    }
 
-            if (profile.language === 'es') {
-                greeting = `¡Hola ${firstName}! Soy ${agentName}. ¿En qué puedo ayudarte hoy?`;
-            }
+                    // No history found, show greeting
+                    const firstName = user.displayName?.split(' ')[0] || 'there';
+                    const agentName = profile.agentConfig?.name || 'Emi';
+                    let greeting = `Hello ${firstName}! I am ${agentName}. How can I help you today?`;
 
-            setMessages([
-                { role: 'model', content: greeting }
-            ]);
+                    if (profile.language === 'es') {
+                        greeting = `¡Hola ${firstName}! Soy ${agentName}. ¿En qué puedo ayudarte hoy?`;
+                    }
+
+                    setMessages([{ role: 'model', content: greeting }]);
+                } catch (e) {
+                    console.error("Error loading chat history:", e);
+                }
+            };
+
+            loadHistory();
         }
     }, [user, profileLoading, profile.language]);
 
@@ -243,7 +260,14 @@ export default function ChatComponent() {
                                 <div className={`rounded-2xl px-5 py-3 max-w-[80%] shadow-sm leading-relaxed whitespace-pre-wrap break-words ${msg.role === 'model' ? 'bg-surface text-foreground rounded-tl-none border border-border-theme' : 'bg-primary text-white rounded-tr-none'}`}>
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm]}
+                                        rehypePlugins={[rehypeRaw]}
                                         components={{
+                                            blockquote: ({ node, ...props }: any) => (
+                                                <blockquote
+                                                    {...props}
+                                                    className="border-l-4 border-primary/50 pl-4 my-2 italic bg-surface/50 p-4 rounded-r-lg shadow-sm"
+                                                />
+                                            ),
                                             a: ({ node, ...props }: any) => (
                                                 <a
                                                     {...props}

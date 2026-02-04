@@ -42,10 +42,10 @@ export default function Sidebar() {
                             <div className="mt-6">
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted mb-3 whitespace-nowrap">Recent</h3>
                                 {/* Placeholder for history */}
-                                <div className="flex items-center gap-3 rounded-lg px-4 py-2 hover:bg-background cursor-pointer text-sm transition-colors whitespace-nowrap">
+                                <Link href="/" className="flex items-center gap-3 rounded-lg px-4 py-2 hover:bg-background cursor-pointer text-sm transition-colors whitespace-nowrap">
                                     <MessageSquare className="h-4 w-4 shrink-0" />
-                                    <span className="truncate">Previous conversation...</span>
-                                </div>
+                                    <span className="truncate">Current Chat</span>
+                                </Link>
                             </div>
                         </div>
                         <div className="border-t border-border-theme p-4">

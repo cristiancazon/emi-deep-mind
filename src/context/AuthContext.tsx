@@ -51,6 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const provider = new GoogleAuthProvider();
             // Request full access to Calendar (for creating events)
             provider.addScope('https://www.googleapis.com/auth/calendar');
+            provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+            provider.addScope('https://www.googleapis.com/auth/gmail.compose');
+            provider.addScope('https://www.googleapis.com/auth/gmail.send');
 
             // Force Google to show consent screen again to ensure calendar permissions are requested
             provider.setCustomParameters({

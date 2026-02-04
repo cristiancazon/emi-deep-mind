@@ -6,6 +6,7 @@ import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { findRelevantTopic, saveTopicMemory } from "@/lib/memory";
 import { listCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, calendarTools } from "@/lib/tools/calendar";
 import { getGoogleNews, newsTools } from "@/lib/tools/news";
+import { listEmails, searchEmails, createEmailDraft, sendEmail, gmailTools } from "@/lib/tools/gmail";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -125,8 +126,21 @@ export async function POST(req: Request) {
             5. Al dar noticias, USA EXCLUSIVAMENTE ESTE FORMATO para cada noticia:
                - [Título de la noticia] - [Fuente] ([Fecha])
                - [Leer más](URL_DE_LA_NOTICIA)
-            (Es CRUCIAL que incluyas el enlace 'Leer más' con la URL real que te da la herramienta. No inventes links).`,
-            tools: [{ functionDeclarations: [...newsTools, ...(googleAccessToken ? calendarTools : [])] as any }]
+            (Es CRUCIAL que incluyas el enlace 'Leer más' con la URL real que te da la herramienta. No inventes links).
+            6. GMAIL: Puedes leer y enviar correos. ANTES de enviar un correo (tool 'send_email'), SIEMPRE pide confirmación explícita al usuario mostrándole el borrador.
+               - Para mostrar el borrador, ENVUÉLVELO en una cita (blockquote) usando el símbolo > al inicio de cada línea.
+               - DENTRO del borrador, usa etiquetas HTML simples (<b>, <i>, <br>, <p>) para darle formato enriquecido.
+               - Ejemplo de respuesta:
+                 "Aquí tienes el borrador:
+                 > **Asunto**: Presupuesto
+                 >
+                 > <p>Hola Juan,</p><p>Te adjunto lo solicitado...</p>"`,
+            tools: [{
+                functionDeclarations: [
+                    ...newsTools,
+                    ...(googleAccessToken ? [...calendarTools, ...gmailTools] : [])
+                ] as any
+            }]
         });
 
         // DEBUG: Log tool registration
@@ -171,6 +185,18 @@ export async function POST(req: Request) {
                             break;
                         case 'get_google_news':
                             toolResult = await getGoogleNews((args as any).query);
+                            break;
+                        case 'list_emails':
+                            toolResult = await listEmails(googleAccessToken, (args as any).maxResults);
+                            break;
+                        case 'search_emails':
+                            toolResult = await searchEmails(googleAccessToken, (args as any).query, (args as any).maxResults);
+                            break;
+                        case 'create_email_draft':
+                            toolResult = await createEmailDraft(googleAccessToken, args as any);
+                            break;
+                        case 'send_email':
+                            toolResult = await sendEmail(googleAccessToken, args as any);
                             break;
                         default:
                             throw new Error(`Unknown tool: ${name}`);

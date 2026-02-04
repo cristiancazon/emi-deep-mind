@@ -102,8 +102,25 @@ export default function ToolsPanel() {
                                 <Hammer className="h-4 w-4" />
                                 <h3 className="text-sm font-semibold uppercase tracking-wider">Active Tools</h3>
                             </div>
-                            <div className="p-6 bg-gray-900/50 rounded-xl border border-gray-800 text-center">
-                                <p className="text-xs text-gray-500">Tools are managed automatically by Gemini. UI controls coming soon.</p>
+                            <div className="space-y-3 p-4 bg-background/50 rounded-xl border border-border-theme">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Calendar</span>
+                                    <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-emerald-400/20">
+                                        <Check className="h-3 w-3" /> Ok
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">News</span>
+                                    <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-emerald-400/20">
+                                        <Check className="h-3 w-3" /> Ok
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Gmail</span>
+                                    <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-emerald-400/20">
+                                        <Check className="h-3 w-3" /> Ok
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
