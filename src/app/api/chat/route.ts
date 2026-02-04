@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { findRelevantTopic, saveTopicMemory } from "@/lib/memory";
 import { listCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, calendarTools } from "@/lib/tools/calendar";
+import { getGoogleNews, newsTools } from "@/lib/tools/news";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -120,8 +121,12 @@ export async function POST(req: Request) {
             1. Responde de forma útil, cercana y personalizada.
             2. Si las etiquetas dicen "Experto...", adapta el nivel técnico.
             3. Si encontraste un "RECUERDO DEL TEMA", demustra que recuerdas lo anterior.
-            4. Al mostrar eventos del calendario, incluye el link de Google Calendar para que el usuario pueda acceder directamente.`,
-            tools: googleAccessToken ? [{ functionDeclarations: calendarTools as any }] : undefined
+            4. Al mostrar eventos del calendario, incluye el link de Google Calendar para que el usuario pueda acceder directamente.
+            5. Al dar noticias, USA EXCLUSIVAMENTE ESTE FORMATO para cada noticia:
+               - [Título de la noticia] - [Fuente] ([Fecha])
+               - [Leer más](URL_DE_LA_NOTICIA)
+            (Es CRUCIAL que incluyas el enlace 'Leer más' con la URL real que te da la herramienta. No inventes links).`,
+            tools: [{ functionDeclarations: [...newsTools, ...(googleAccessToken ? calendarTools : [])] as any }]
         });
 
         // DEBUG: Log tool registration
@@ -162,8 +167,10 @@ export async function POST(req: Request) {
                         case 'update_calendar_event':
                             toolResult = await updateCalendarEvent(googleAccessToken, (args as any).eventId, args as any);
                             break;
-                        case 'delete_calendar_event':
                             toolResult = await deleteCalendarEvent(googleAccessToken, (args as any).eventId);
+                            break;
+                        case 'get_google_news':
+                            toolResult = await getGoogleNews((args as any).query);
                             break;
                         default:
                             throw new Error(`Unknown tool: ${name}`);
