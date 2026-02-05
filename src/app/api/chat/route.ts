@@ -8,6 +8,7 @@ import { listCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalend
 import { getGoogleNews, newsTools } from "@/lib/tools/news";
 import { listEmails, searchEmails, createEmailDraft, sendEmail, gmailTools } from "@/lib/tools/gmail";
 import { searchGoogle, searchTools } from "@/lib/tools/search";
+import { listTaskLists, listTasks, addTask, completeTask, tasksTools } from "@/lib/tools/tasks";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -116,6 +117,7 @@ export async function POST(req: Request) {
 
             ACCESO A HERRAMIENTAS:
             - Tienes acceso al calendario de Google del usuario para listar, crear, modificar y eliminar eventos.
+            - Tienes acceso a GOOGLE TASKS para gestionar las listas de tareas del usuario (crear, listar, completar).
             - IMPORTANTE: Siempre intenta usar la herramienta cuando te pregunten sobre el calendario, incluso si en conversaciones pasadas hubo problemas de permisos.
             - Cuando respondas sobre eventos del calendario, SIEMPRE incluye al final un link a Google Calendar: https://calendar.google.com
 
@@ -133,12 +135,25 @@ export async function POST(req: Request) {
                - DENTRO del borrador, usa etiquetas HTML simples (<b>, <i>, <br>, <p>) para darle formato enriquecido.
             7. BÚSQUEDA WEB:
                - PRIORIDAD: Si el usuario busca "noticias", "qué pasó", "actualidad", SIEMPRE usa 'get_google_news' PRIMERO.
-               - Solo usa 'search_google' (Búsqueda general) si buscas datos históricos, definiciones, tutoriales o si 'get_google_news' no dio resultados relevantes.`,
+            8. GOOGLE MAPS / UBICACIÓN:
+               - Tienes capacidad de "Mapas" a través de tu herramienta de búsqueda.
+               - Si te preguntan "¿Dónde queda X?" o "Busca una farmacia", usa 'search_google'.
+               - En tu respuesta, SIEMPRE incluye la dirección exacta si la encuentras y un enlace generado así: https://www.google.com/maps/search/?api=1&query=TERMINO_DE_BUSQUEDA
+               - Ejemplo: "La farmacia más cercana es X en Av. Siempreviva 123. [Ver en Mapa](https://www.google.com/maps/search/?api=1&query=Farmacia+Av+Siempreviva+123)"
+            
+            9. COMANDO ESPECIAL '/whois':
+               - Si el usuario envía exactamente "/whois", responde con una lista clara de tus capacidades actuales:
+                 * 📅 **Google Calendar**: Gestión de eventos.
+                 * ✅ **Google Tasks**: Gestión de tareas y listas.
+                 * 📍 **Google Maps**: Búsqueda de lugares y direcciones.
+                 * 📧 **Gmail**: Lectura y envío de correos.
+                 * 📞 **Call Mode**: Interfaz de llamada de voz bidireccional.
+                 * 🎙️ **Live Mode**: Conversación fluida en tiempo real.`,
             tools: [{
                 functionDeclarations: [
                     ...newsTools,
                     ...searchTools,
-                    ...(googleAccessToken ? [...calendarTools, ...gmailTools] : [])
+                    ...(googleAccessToken ? [...calendarTools, ...gmailTools, ...tasksTools] : [])
                 ] as any
             }]
         });
@@ -201,6 +216,18 @@ export async function POST(req: Request) {
                             break;
                         case 'send_email':
                             toolResult = await sendEmail(googleAccessToken, args as any);
+                            break;
+                        case 'list_task_lists':
+                            toolResult = await listTaskLists(googleAccessToken, (args as any).maxResults);
+                            break;
+                        case 'list_tasks':
+                            toolResult = await listTasks(googleAccessToken, (args as any).tasklist, (args as any).showCompleted, (args as any).maxResults);
+                            break;
+                        case 'add_task':
+                            toolResult = await addTask(googleAccessToken, args as any);
+                            break;
+                        case 'complete_task':
+                            toolResult = await completeTask(googleAccessToken, (args as any).taskId, (args as any).tasklist);
                             break;
                         default:
                             throw new Error(`Unknown tool: ${name}`);

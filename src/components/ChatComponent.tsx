@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, Bot, User as UserIcon, Mic, MicOff } from "lucide-react";
+import { Send, Bot, User as UserIcon, Mic, MicOff, Phone } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
 import LiveInterface from "./LiveInterface";
+import CallInterface from "./CallInterface";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
@@ -22,7 +23,27 @@ export default function ChatComponent() {
 
 
     const { connect, disconnect, sendMessage: sendLiveMessage, isStreaming, isConnected, volumeLevel, error: liveError } = useGeminiLive();
-    const [showLive, setShowLive] = useState(false);
+    const [mode, setMode] = useState<'chat' | 'live' | 'call'>('chat');
+
+    const handleModeChange = (newMode: 'chat' | 'live' | 'call') => {
+        if (newMode === mode) return;
+
+        // Cleanup previous mode
+        if (mode === 'live') {
+            disconnect();
+        }
+
+        // Setup new mode
+        if (newMode === 'live') {
+            setTimeout(() => {
+                connect(videoRef.current, messages, async (text, audio, endTurn) => {
+                    // Transcription callback
+                });
+            }, 100);
+        }
+
+        setMode(newMode);
+    };
 
     // Initialize with a generic message, update in useEffect when user loads
     const [messages, setMessages] = useState<{ role: 'user' | 'model', content: string }[]>([
@@ -77,27 +98,6 @@ export default function ChatComponent() {
             loadHistory();
         }
     }, [user, profileLoading, profile.language]);
-
-    const handleToggleLive = async () => {
-        if (showLive) {
-            // Stop
-            disconnect();
-            setShowLive(false);
-        } else {
-            // Start
-            setShowLive(true);
-            setTimeout(() => {
-                // Pass current chat history to context AND a callback for live text
-                connect(videoRef.current, messages, async (text, audio, endTurn) => {
-                    // Transcription removed as requested.
-                    // The original code had a syntax error with an extra '}' here.
-                    // Assuming the intent was to remove the 'if (text)' block and keep the callback structure.
-                    // If there was other logic for 'endTurn' or 'audio', it should be added here.
-                    // For now, keeping it minimal as per the instruction's implied removal.
-                });
-            }, 100);
-        }
-    };
 
 
 
@@ -157,7 +157,7 @@ export default function ChatComponent() {
         // This will be detected by the API response which includes topic info
 
         // If in Live Mode, send text to Live Session as well
-        if (showLive && isConnected) {
+        if (mode === 'live' && isConnected) {
             sendLiveMessage(userMessage);
             // We still want to save to DB? - The standard API call below saves to DB. 
             // We should probably NOT call the standard API if we want the voice model to respond directly via audio?
@@ -236,25 +236,32 @@ export default function ChatComponent() {
                 <div className="flex bg-surface p-1 rounded-full relative border border-border-theme/50">
                     {/* Animated Background Indicator */}
                     <div
-                        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-full transition-all duration-300 ease-in-out shadow-lg ${showLive ? 'left-[calc(50%+2px)]' : 'left-1'}`}
+                        className={`absolute top-1 bottom-1 w-[calc(33.33%-4px)] bg-primary rounded-full transition-all duration-300 ease-in-out shadow-lg`}
+                        style={{
+                            left: mode === 'chat' ? '4px' : mode === 'live' ? 'calc(33.33% + 2px)' : 'calc(66.66%)'
+                        }}
                     />
 
                     <button
-                        onClick={() => {
-                            setShowLive(false);
-                            disconnect(); // Ensure voice drops when switching to text
-                        }}
-                        className={`relative px-6 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center gap-2 ${!showLive ? 'text-white' : 'text-muted hover:text-foreground'}`}
+                        onClick={() => handleModeChange('chat')}
+                        className={`relative w-24 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center justify-center gap-2 ${mode === 'chat' ? 'text-white' : 'text-muted hover:text-foreground'}`}
                     >
                         <Bot className="h-4 w-4" />
                         <span>Chat</span>
                     </button>
                     <button
-                        onClick={handleToggleLive}
-                        className={`relative px-6 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center gap-2 ${showLive ? 'text-white' : 'text-muted hover:text-foreground'}`}
+                        onClick={() => handleModeChange('live')}
+                        className={`relative w-24 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center justify-center gap-2 ${mode === 'live' ? 'text-white' : 'text-muted hover:text-foreground'}`}
                     >
                         <Mic className="h-4 w-4" />
                         <span>Live</span>
+                    </button>
+                    <button
+                        onClick={() => handleModeChange('call')}
+                        className={`relative w-24 py-2 rounded-full text-sm font-medium transition-colors z-10 flex items-center justify-center gap-2 ${mode === 'call' ? 'text-white' : 'text-muted hover:text-foreground'}`}
+                    >
+                        <Phone className="h-4 w-4" />
+                        <span>Call</span>
                     </button>
                 </div>
             </div>
@@ -262,20 +269,29 @@ export default function ChatComponent() {
             {/* Content Area */}
             <div className="flex-1 overflow-hidden relative">
                 {/* Voice Mode View */}
-                <div className={`absolute inset-0 transition-opacity duration-300 ${showLive ? 'opacity-100 z-20' : 'opacity-0 z-0 pointer-events-none'}`}>
-                    {showLive && (
+                <div className={`absolute inset-0 transition-opacity duration-300 ${mode === 'live' ? 'opacity-100 z-20' : 'opacity-0 z-0 pointer-events-none'}`}>
+                    {mode === 'live' && (
                         <LiveInterface
                             videoRef={videoRef}
                             isStreaming={isStreaming}
                             isConnected={isConnected}
                             volumeLevel={volumeLevel}
-                            onClose={handleToggleLive} // Keeps functionality valid
+                            onClose={() => handleModeChange('chat')}
                         />
                     )}
                 </div>
 
+                {/* Call Mode View */}
+                <div className={`absolute inset-0 transition-opacity duration-300 ${mode === 'call' ? 'opacity-100 z-20' : 'opacity-0 z-0 pointer-events-none'}`}>
+                    {mode === 'call' && (
+                        <div className="h-full w-full bg-background">
+                            <CallInterface onClose={() => handleModeChange('chat')} />
+                        </div>
+                    )}
+                </div>
+
                 {/* Text Mode View */}
-                <div className={`absolute inset-0 flex flex-col transition-opacity duration-300 ${!showLive ? 'opacity-100 z-20' : 'opacity-0 z-0 pointer-events-none'}`}>
+                <div className={`absolute inset-0 flex flex-col transition-opacity duration-300 ${mode === 'chat' ? 'opacity-100 z-20' : 'opacity-0 z-0 pointer-events-none'}`}>
                     <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-border-theme scrollbar-track-transparent">
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>

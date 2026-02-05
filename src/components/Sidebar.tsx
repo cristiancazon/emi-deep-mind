@@ -1,4 +1,4 @@
-import { MessageSquarePlus, MessageSquare, Settings, User, LogOut, PanelLeftClose, PanelLeftOpen, Menu } from "lucide-react";
+import { MessageSquarePlus, MessageSquare, Settings, User, LogOut, PanelLeftClose, PanelLeftOpen, Menu, Phone } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
 import Link from "next/link";
@@ -39,6 +39,8 @@ export default function Sidebar() {
                                 <MessageSquarePlus className="h-5 w-5 shrink-0" />
                                 <span>New Chat</span>
                             </Link>
+
+
                             <div className="mt-6">
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted mb-3 whitespace-nowrap">Recent</h3>
                                 {/* Placeholder for history */}
@@ -64,6 +66,8 @@ export default function Sidebar() {
                                 <Settings className="h-4 w-4 shrink-0" />
                                 <span>Settings</span>
                             </Link>
+
+                            <div className="my-2 border-t border-gray-800/10 dark:border-gray-100/10"></div>
                         </div>
                     </>
                 )}
@@ -75,6 +79,7 @@ export default function Sidebar() {
                     <button className="p-2 hover:bg-background rounded-lg text-primary" title="New Chat" onClick={() => setIsOpen(true)}>
                         <MessageSquarePlus className="h-5 w-5" />
                     </button>
+
                 </div>
             )}
         </aside>

@@ -136,6 +136,18 @@ export default function ToolsPanel() {
                                         Disabled
                                     </span>
                                 </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Tasks</span>
+                                    <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-emerald-400/20">
+                                        <Check className="h-3 w-3" /> Ok
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Google Maps</span>
+                                    <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-emerald-400/20">
+                                        <Check className="h-3 w-3" /> Ok
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

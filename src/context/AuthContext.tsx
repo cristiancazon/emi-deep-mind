@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
             provider.addScope('https://www.googleapis.com/auth/gmail.compose');
             provider.addScope('https://www.googleapis.com/auth/gmail.send');
+            provider.addScope('https://www.googleapis.com/auth/tasks');
 
             // Force Google to show consent screen again to ensure calendar permissions are requested
             provider.setCustomParameters({

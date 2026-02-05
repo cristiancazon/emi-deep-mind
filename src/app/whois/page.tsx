@@ -1,151 +1,220 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, Calendar, Newspaper, Mail, Brain, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Bot, Calendar, Brain, ShieldCheck, Palette, Zap, Cpu, Globe, ArrowRight, Check, MessageSquare, Mic, Video } from "lucide-react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
-export default function WhoisPage() {
+export default function WhoIsPage() {
+    const { profile } = useUserProfile();
+    const agentName = profile.agentConfig?.name || "Emi";
+
     return (
-        <div className="min-h-screen bg-gray-950 text-white font-sans scroll-smooth">
-            {/* Hero Section */}
-            <header className="relative py-20 px-6 flex flex-col items-center text-center overflow-hidden">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-primary/20 blur-[120px] rounded-full -z-10" />
+        <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-primary/30">
 
-                <div className="mb-6 rounded-3xl bg-gray-900/50 p-6 border border-gray-800 shadow-2xl backdrop-blur-sm">
-                    <img src="/logo_emi.png" alt="EMI Logo" className="h-32 w-auto object-contain" />
+            {/* 1. HERO SECTION: What is EMI? */}
+            <section className="relative min-h-[90vh] flex flex-col items-center justify-center text-center px-6 overflow-hidden">
+                {/* Background Effects */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/20 blur-[180px] rounded-full -z-10 animate-pulse-slow" />
+                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10 -z-50" />
+
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-primary-300 text-sm font-medium mb-8 backdrop-blur-sm animate-fade-in-up">
+                    <Bot className="h-4 w-4" />
+                    <span>Next-Gen Personal Intelligence</span>
                 </div>
 
-                <h1 className="text-5xl lg:text-7xl font-extrabold mb-6 tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
-                    Meet EMI
+                <div className="mb-6 p-6 rounded-3xl bg-white/5 border border-white/5 shadow-2xl backdrop-blur-sm animate-fade-in-up delay-100">
+                    <img src="/logo_emi.png" alt="Emi Logo" className="h-24 w-auto object-contain" />
+                </div>
+
+                <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-6 bg-gradient-to-b from-white via-white to-white/50 bg-clip-text text-transparent max-w-4xl mx-auto leading-[1.1]">
+                    Meet {agentName}.
                 </h1>
 
-                <p className="text-xl text-gray-400 max-w-2xl leading-relaxed">
-                    Personalized Intelligence. Seamless Integration. <br />
-                    Your multimodal companion for productivity and information.
+                <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed font-light">
+                    Your <span className="text-white font-medium">multimodal companion</span> designed to bridge the gap between thought and action. It sees, hears, speaks, and executes.
                 </p>
-            </header>
 
-            {/* Content Sections */}
-            <main className="max-w-6xl mx-auto px-6 py-12 space-y-24">
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <Link href="/" className="px-8 py-4 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-all flex items-center gap-2">
+                        Start Chatting <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link href="#capabilities" className="px-8 py-4 bg-white/5 text-white font-medium rounded-full hover:bg-white/10 border border-white/10 transition-all">
+                        Explore Features
+                    </Link>
+                </div>
+            </section>
 
-                {/* What is EMI? */}
-                <section className="grid lg:grid-cols-2 gap-12 items-center">
-                    <div className="space-y-6">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold uppercase tracking-wider">
-                            <Bot className="h-4 w-4" /> The Concept
-                        </div>
-                        <h2 className="text-4xl font-bold">What is EMI?</h2>
-                        <p className="text-gray-400 text-lg leading-relaxed">
-                            EMI (Expert Multimodal Intelligence) is a sophisticated personal assistant built using the cutting-edge **Gemini 2.5 Flash** model. Unlike standard chatbots, EMI is designed to be a living part of your digital ecosystem, remembering your preferences and interating directly with the services you use every day.
-                        </p>
-                    </div>
-                    <div className="bg-gray-900/40 rounded-3xl p-8 border border-gray-800 shadow-inner">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-gray-800/50 rounded-2xl flex flex-col items-center text-center space-y-2">
-                                <Brain className="h-8 w-8 text-purple-400" />
-                                <h4 className="font-semibold text-sm">Long-term Memory</h4>
-                            </div>
-                            <div className="p-4 bg-gray-800/50 rounded-2xl flex flex-col items-center text-center space-y-2">
-                                <ShieldCheck className="h-8 w-8 text-blue-400" />
-                                <h4 className="font-semibold text-sm">Secure OAuth</h4>
-                            </div>
-                            <div className="p-4 bg-gray-800/50 rounded-2xl flex flex-col items-center text-center space-y-2">
-                                <Bot className="h-8 w-8 text-indigo-400" />
-                                <h4 className="font-semibold text-sm">Gemini Powered</h4>
-                            </div>
-                            <div className="p-4 bg-gray-800/50 rounded-2xl flex flex-col items-center text-center space-y-2">
-                                <Hammer className="h-8 w-8 text-emerald-400" />
-                                <h4 className="font-semibold text-sm">Tool Integration</h4>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Capabilities */}
-                <section className="space-y-12">
-                    <div className="text-center space-y-4">
-                        <h2 className="text-4xl font-bold">What can EMI do?</h2>
-                        <p className="text-gray-400 max-w-xl mx-auto">
-                            EMI is equipped with real-world tools that allow it to perform actions on your behalf across various Google services.
+            {/* 2. FOUNDATION: What is it based on? */}
+            <section className="py-24 px-6 border-t border-white/5 bg-white/[0.02]">
+                <div className="max-w-6xl mx-auto">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold mb-4">Powered by Advanced Technologies</h2>
+                        <p className="text-gray-400 max-w-2xl mx-auto">
+                            Built on the cutting edge of generative AI and cloud infrastructure to deliver speed, accuracy, and reliability.
                         </p>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-8">
-                        {/* Calendar */}
-                        <div className="group bg-gray-900/50 p-8 rounded-3xl border border-gray-800 hover:border-primary/50 transition-all duration-300">
-                            <div className="mb-6 h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                                <Calendar className="h-6 w-6" />
-                            </div>
-                            <h3 className="text-xl font-bold mb-3">Google Calendar</h3>
-                            <p className="text-gray-500 text-sm leading-relaxed">
-                                EMI can list, create, edit, and delete events. Just say "Book a meeting" or "What's my day look like?".
-                            </p>
-                        </div>
+                        <TechCard
+                            icon={<Brain className="h-8 w-8 text-purple-400" />}
+                            title="Gemini 2.5 Logic"
+                            description="Leveraging Google's most efficient multimodal model for near-instant reasoning and context understanding."
+                        />
+                        <TechCard
+                            icon={<Zap className="h-8 w-8 text-yellow-400" />}
+                            title="Real-time Streaming"
+                            description="WebSockets and low-latency audio processing enable fluid, interruption-friendly voice conversations."
+                        />
+                        <TechCard
+                            icon={<Cpu className="h-8 w-8 text-blue-400" />}
+                            title="Adaptive Memory"
+                            description="A hybrid vector + graph memory system that learns from your preferences and history over time."
+                        />
+                    </div>
+                </div>
+            </section>
 
-                        {/* News */}
-                        <div className="group bg-gray-900/50 p-8 rounded-3xl border border-gray-800 hover:border-emerald-500/50 transition-all duration-300">
-                            <div className="mb-6 h-12 w-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-                                <Newspaper className="h-6 w-6" />
+            {/* 3. PURPOSE: What is it for? */}
+            <section className="py-24 px-6 relative overflow-hidden">
+                <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-16">
+                    <div className="flex-1 space-y-8">
+                        <h2 className="text-4xl md:text-5xl font-bold leading-tight">
+                            More than an assistant.<br />
+                            <span className="text-gray-500">An extension of you.</span>
+                        </h2>
+                        <p className="text-lg text-gray-400 leading-relaxed">
+                            EMI isn't just for answering trivia. It's built to <strong className="text-white">get things done</strong>. Whether you're a developer needing to debug code, a manager organizing a schedule, or a creative brainstorming ideas, EMI adapts to your workflow.
+                        </p>
+                        <ul className="space-y-4">
+                            <FeatureItem text="Automate mundane digital chores" />
+                            <FeatureItem text="Synthesize complex information instantly" />
+                            <FeatureItem text="Maintain context across days and sessions" />
+                            <FeatureItem text="Interact hands-free while on the move" />
+                        </ul>
+                    </div>
+                    <div className="flex-1 relative">
+                        {/* Abstract visual representation of "Connection" */}
+                        <div className="relative w-full aspect-square rounded-[3rem] bg-gradient-to-tr from-gray-800 to-black border border-white/10 overflow-hidden flex items-center justify-center">
+                            <div className="absolute inset-0 bg-grid-white/[0.05]" />
+                            <div className="relative z-10 grid grid-cols-2 gap-4 p-8 w-full">
+                                <AppIcon icon={<Calendar />} label="Calendar" color="bg-blue-500/20 text-blue-400" />
+                                <AppIcon icon={<Check />} label="Tasks" color="bg-emerald-500/20 text-emerald-400" />
+                                <AppIcon icon={<Globe />} label="Search" color="bg-orange-500/20 text-orange-400" />
+                                <AppIcon icon={<Brain />} label="Memory" color="bg-purple-500/20 text-purple-400" />
                             </div>
-                            <h3 className="text-xl font-bold mb-3">Google News</h3>
-                            <p className="text-gray-500 text-sm leading-relaxed">
-                                Stay informed with real-time news from Google News Argentina. Search topics or get the top headlines.
-                            </p>
-                        </div>
-
-                        {/* Gmail */}
-                        <div className="group bg-gray-900/50 p-8 rounded-3xl border border-gray-800 hover:border-rose-500/50 transition-all duration-300">
-                            <div className="mb-6 h-12 w-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
-                                <Mail className="h-6 w-6" />
-                            </div>
-                            <h3 className="text-xl font-bold mb-3">Gmail Interaction</h3>
-                            <p className="text-gray-500 text-sm leading-relaxed">
-                                Read your emails, create drafts for review, or send messages using full HTML formatting and direct UI feedback.
-                            </p>
                         </div>
                     </div>
-                </section>
+                </div>
+            </section>
 
-                {/* Integration Section */}
-                <section className="bg-gradient-to-b from-gray-900 to-gray-950 p-12 rounded-[3rem] border border-gray-800 text-center space-y-8 shadow-2xl">
-                    <h2 className="text-3xl font-bold">Start your personalized experience</h2>
-                    <p className="text-gray-400 max-w-lg mx-auto leading-relaxed">
-                        Log in with your Google account to grant EMI the permissions it needs to serve you. You are always in control of what EMI can access.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                        <Link href="/login" className="px-10 py-4 bg-primary text-white font-bold rounded-2xl hover:opacity-90 transition-all shadow-xl shadow-primary/20">
-                            Get Started
-                        </Link>
-                        <Link href="/login" className="px-10 py-4 bg-gray-800/50 text-white font-bold rounded-2xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
-                            <ArrowLeft className="h-4 w-4" /> Back to Login
-                        </Link>
+            {/* 4. FUNCTIONS: Detail capabilities */}
+            <section id="capabilities" className="py-24 px-6 bg-black">
+                <div className="max-w-6xl mx-auto">
+                    <div className="mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold mb-6">Core Functions</h2>
+                        <div className="h-1 w-20 bg-primary rounded-full" />
                     </div>
-                </section>
-            </main>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <FunctionCard
+                            title="Conversational AI"
+                            icon={<MessageSquare className="text-white" />}
+                            desc="Natural language processing for writing, coding, analysis, and creative drafting."
+                            tags={["GPT-4 Class", "Code", "Analysis"]}
+                        />
+                        <FunctionCard
+                            title="Live Voice Mode"
+                            icon={<Mic className="text-white" />}
+                            desc="Bi-directional, interruptible voice chat. Feels like talking to a human on the phone."
+                            tags={["Low Latency", "Natural TTS", "Hands-free"]}
+                        />
+                        <FunctionCard
+                            title="Visual Perception"
+                            icon={<Video className="text-white" />}
+                            desc="Show EMI your camera or upload images. It can analyze surroundings, documents, and code."
+                            tags={["Computer Vision", "Real-time"]}
+                        />
+                        <FunctionCard
+                            title="Workspace Actions"
+                            icon={<Calendar className="text-white" />}
+                            desc="Direct integration with Google Calendar, Tasks, and Gmail to manage your life."
+                            tags={["OAuth2", "Secure", "Write Access"]}
+                        />
+                        <FunctionCard
+                            title="Web Intelligence"
+                            icon={<Globe className="text-white" />}
+                            desc="Access to real-time information via Google Search and News for up-to-the-minute answers."
+                            tags={["Browsing", "Fact-checking", "Maps"]}
+                        />
+                        <FunctionCard
+                            title="Deep Personalization"
+                            icon={<Palette className="text-white" />}
+                            desc="Customizable themes, voice settings, and a memory that learns your specific preferences."
+                            tags={["Themes", "Config", "Adaptability"]}
+                        />
+                    </div>
+                </div>
+            </section>
 
             {/* Footer */}
-            <footer className="py-12 border-t border-gray-900 text-center text-gray-600 text-sm">
-                &copy; {new Date().getFullYear()} Emi Deep Mind. Powered by Gemini Multimodal Live API.
+            <footer className="py-12 px-6 border-t border-white/10 text-center">
+                <p className="text-gray-500 text-sm">
+                    © {new Date().getFullYear()} Emi Deep Mind. Architecture by Antigravity.
+                </p>
             </footer>
         </div>
     );
 }
 
-// Simple Hammer icon for the concept grid since hammer comes from lucide too but was missing in the top import list
-const Hammer = ({ className }: { className?: string }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24" height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-    >
-        <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
-        <path d="M17.64 15 22 10.64" />
-        <path d="m20.91 11.7-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6l-1.25-1.25c-.6-.6-1.4-.93-2.25-.93h-.86L9.01 5.05 5.05 9.01l-2.69 2.69" />
-        <path d="m8 6 5 5" />
-    </svg>
-)
+// --- Components ---
+
+function TechCard({ icon, title, description }: { icon: any, title: string, description: string }) {
+    return (
+        <div className="p-8 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+            <div className="mb-6 bg-black/50 w-16 h-16 rounded-2xl flex items-center justify-center border border-white/10">
+                {icon}
+            </div>
+            <h3 className="text-xl font-bold mb-3">{title}</h3>
+            <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
+        </div>
+    );
+}
+
+function FeatureItem({ text }: { text: string }) {
+    return (
+        <li className="flex items-center gap-3 text-lg text-gray-300">
+            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <Check className="h-3 w-3 text-primary" />
+            </div>
+            {text}
+        </li>
+    );
+}
+
+function AppIcon({ icon, label, color }: { icon: any, label: string, color: string }) {
+    return (
+        <div className={`aspect-square rounded-3xl ${color} flex flex-col items-center justify-center gap-2 border border-white/5`}>
+            {icon}
+            <span className="text-xs font-semibold uppercase tracking-wider opacity-70">{label}</span>
+        </div>
+    );
+}
+
+function FunctionCard({ title, icon, desc, tags }: { title: string, icon: any, desc: string, tags: string[] }) {
+    return (
+        <div className="group relative p-8 rounded-3xl bg-[#111] border border-white/5 hover:border-white/20 transition-all overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity scale-150 transform group-hover:scale-125 duration-500">
+                {icon}
+            </div>
+            <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
+            <p className="text-gray-400 text-sm mb-6 h-12">{desc}</p>
+            <div className="flex flex-wrap gap-2">
+                {tags.map((t, i) => (
+                    <span key={i} className="px-3 py-1 rounded-full bg-white/5 text-xs text-gray-400 border border-white/5">
+                        {t}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
