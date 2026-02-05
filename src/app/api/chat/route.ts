@@ -279,7 +279,10 @@ export async function POST(req: Request) {
         saveTopicMemory(userId, conversationalContext).catch(err => console.error("Background memory update failed:", err));
         // ---------------------------
 
-        return NextResponse.json({ response: text });
+        return NextResponse.json({
+            response: text,
+            topic: relevantTopic?.name || null
+        });
     } catch (error: any) {
         console.error("Error in chat API:", error);
         return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });

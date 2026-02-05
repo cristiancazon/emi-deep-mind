@@ -121,6 +121,16 @@ export default function ToolsPanel() {
                                         <Check className="h-3 w-3" /> Ok
                                     </span>
                                 </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Web Search</span>
+                                    <span className="text-xs text-red-400 bg-red-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-red-400/20">
+                                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <line x1="18" y1="6" x2="6" y2="18" />
+                                            <line x1="6" y1="6" x2="18" y2="18" />
+                                        </svg>
+                                        Disabled
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

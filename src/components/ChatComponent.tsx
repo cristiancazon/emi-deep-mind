@@ -29,6 +29,7 @@ export default function ChatComponent() {
         { role: 'model', content: 'Hello! I am Gemini. Loading your profile...' }
     ]);
     const [isLoading, setIsLoading] = useState(false);
+    const [currentTopic, setCurrentTopic] = useState<string | null>(null);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -152,6 +153,9 @@ export default function ChatComponent() {
         setInput("");
         setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
+        // Check for topic change before proceeding
+        // This will be detected by the API response which includes topic info
+
         // If in Live Mode, send text to Live Session as well
         if (showLive && isConnected) {
             sendLiveMessage(userMessage);
@@ -194,7 +198,25 @@ export default function ChatComponent() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.details || data.error || "API Error");
 
-            setMessages(prev => [...prev, { role: 'model', content: data.response }]);
+            // Check if topic changed
+            if (data.topic && data.topic !== currentTopic) {
+                // New topic detected - clear old messages except greeting
+                const firstName = user.displayName?.split(' ')[0] || 'there';
+                const agentName = profile.agentConfig?.name || 'Emi';
+                const greeting = profile.language === 'es'
+                    ? `¡Hola ${firstName}! Soy ${agentName}. Cambiamos de tema. ¿En qué puedo ayudarte?`
+                    : `Hello ${firstName}! I am ${agentName}. Topic changed. How can I help you?`;
+
+                setMessages([
+                    { role: 'model', content: greeting },
+                    { role: 'user', content: userMessage },
+                    { role: 'model', content: data.response }
+                ]);
+                setCurrentTopic(data.topic);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', content: data.response }]);
+                if (data.topic) setCurrentTopic(data.topic);
+            }
         } catch (error: any) {
             console.error(error);
             setMessages(prev => [...prev, { role: 'model', content: `Error: ${error.message}` }]);
