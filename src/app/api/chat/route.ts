@@ -281,6 +281,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             response: text,
+            // Return the detected topic so the frontend can decide if it needs to clear history
             topic: relevantTopic?.name || null
         });
     } catch (error: any) {

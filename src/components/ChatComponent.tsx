@@ -201,6 +201,8 @@ export default function ChatComponent() {
             // Check if topic changed
             if (data.topic && data.topic !== currentTopic) {
                 // New topic detected - clear old messages except greeting
+                // This logic ensures the context remains fresh and focused on the new subject.
+                // It prevents the bot from getting confused by previous, unrelated conversation history.
                 const firstName = user.displayName?.split(' ')[0] || 'there';
                 const agentName = profile.agentConfig?.name || 'Emi';
                 const greeting = profile.language === 'es'
@@ -214,6 +216,7 @@ export default function ChatComponent() {
                 ]);
                 setCurrentTopic(data.topic);
             } else {
+                // Same topic or no specific topic detected - append message normally
                 setMessages(prev => [...prev, { role: 'model', content: data.response }]);
                 if (data.topic) setCurrentTopic(data.topic);
             }

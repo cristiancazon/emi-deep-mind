@@ -128,6 +128,11 @@ export default function ToolsPanel() {
                                             <line x1="18" y1="6" x2="6" y2="18" />
                                             <line x1="6" y1="6" x2="18" y2="18" />
                                         </svg>
+                                        {/* 
+                                          Web Search is currently DISABLED because Google discontinued the 
+                                          "Search the entire web" feature for new Programmable Search Engines.
+                                          See walkthrough.md for alternative solutions (SerpAPI, Brave).
+                                        */}
                                         Disabled
                                     </span>
                                 </div>
