@@ -41,8 +41,8 @@ ENV NEXT_TELEMETRY_DISABLED 1
 ENV SKIP_TYPESCRIPT_CHECK true
 ENV SKIP_ESLINT_CHECK true
 
-# LA CLAVE: Forzar a que las rutas de API no se validen en el build
-ENV FIREBASE_SERVICE_ACCOUNT='{"project_id":"emi-deepmine"}'
+# Usa esta línea exacta en tu Dockerfile
+ENV FIREBASE_SERVICE_ACCOUNT='{"project_id":"emi-deepmine","private_key":"-----BEGIN PRIVATE KEY-----\nBUILD_DUMMY\n-----END PRIVATE KEY-----","client_email":"build@emi-deepmine.iam.gserviceaccount.com"}'
 
 # Ejecutar el build
 RUN npm run build
