@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
+export const dynamic = 'force-dynamic'; // Ensure runtime env vars are read
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
