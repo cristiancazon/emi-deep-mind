@@ -1,3 +1,6 @@
+// 1. AGREGA ESTA LÍNEA AQUÍ (AL PRINCIPIO DE TODO)
+export const dynamic = 'force-dynamic';
+
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";

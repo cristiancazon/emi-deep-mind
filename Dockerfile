@@ -1,11 +1,10 @@
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
+# Fase de dependencias
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
@@ -14,13 +13,13 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-# Rebuild the source code only when needed
+# Fase de construcción
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# --- INYECTAR VARIABLES DE COMPILACIÓN ---
+# Variables públicas para el Build
 ARG NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDmzsEDr7h85sz8bmOkueflRUo6clR-G1Y
 ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=emi-deepmine.firebaseapp.com
 ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID=emi-deepmine
@@ -37,17 +36,18 @@ ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SEN
 ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
 ENV NEXT_PUBLIC_GEMINI_API_KEY=$NEXT_PUBLIC_GEMINI_API_KEY
 
-# DESACTIVAR VALIDACIONES Y TELEMETRÍA
+# DESACTIVAR CHEQUEOS Y TELEMETRÍA
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV SKIP_TYPESCRIPT_CHECK true
 ENV SKIP_ESLINT_CHECK true
 
-# LLAVE DUMMY EN UNA SOLA LÍNEA (ESTO PASA EL FILTRO DE FIREBASE)
-ENV FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"emi-deepmine","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDV3YnfmCvfhvbn\n/C/2GroOUV3GxQ+Wrj0k69nQvXX8vayjgWysiz23FMc/oilvijjVzUgV4h3Hl3c3\n-----END PRIVATE KEY-----\n","client_email":"dummy@emi-deepmine.iam.gserviceaccount.com"}'
+# LA CLAVE: Forzar a que las rutas de API no se validen en el build
+ENV FIREBASE_SERVICE_ACCOUNT='{"project_id":"emi-deepmine"}'
 
+# Ejecutar el build
 RUN npm run build
 
-# Production image
+# Fase de ejecución
 FROM base AS runner
 WORKDIR /app
 
