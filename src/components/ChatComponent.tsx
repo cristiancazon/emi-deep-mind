@@ -67,35 +67,19 @@ export default function ChatComponent() {
 
     useEffect(() => {
         if (user && !profileLoading) {
-            const loadHistory = async () => {
-                try {
-                    const userRef = doc(db, "conversations", user.uid);
-                    const docSnap = await getDoc(userRef);
+            // OPTIMIZATION: Start fresh every time. 
+            // We rely on "Memory" (Topic Summaries) in the backend for continuity, 
+            // but we don't load the full chat history in the UI to keep it fast and clean.
 
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
-                            setMessages(data.messages);
-                            return;
-                        }
-                    }
+            const firstName = user.displayName?.split(' ')[0] || 'there';
+            const agentName = profile.agentConfig?.name || 'Emi';
+            let greeting = `Hello ${firstName}! I am ${agentName}. How can I help you today?`;
 
-                    // No history found, show greeting
-                    const firstName = user.displayName?.split(' ')[0] || 'there';
-                    const agentName = profile.agentConfig?.name || 'Emi';
-                    let greeting = `Hello ${firstName}! I am ${agentName}. How can I help you today?`;
+            if (profile.language === 'es') {
+                greeting = `¡Hola ${firstName}! Soy ${agentName}. ¿En qué puedo ayudarte hoy?`;
+            }
 
-                    if (profile.language === 'es') {
-                        greeting = `¡Hola ${firstName}! Soy ${agentName}. ¿En qué puedo ayudarte hoy?`;
-                    }
-
-                    setMessages([{ role: 'model', content: greeting }]);
-                } catch (e) {
-                    console.error("Error loading chat history:", e);
-                }
-            };
-
-            loadHistory();
+            setMessages([{ role: 'model', content: greeting }]);
         }
     }, [user, profileLoading, profile.language]);
 
