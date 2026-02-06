@@ -23,6 +23,18 @@ if (!getApps().length) {
     }
 }
 
-// Usamos getters para evitar errores si los servicios no están inicializados aún
-export const adminAuth = getAuth();
-export const adminDb = getFirestore();
+// Safe export logic for build time or runtime bypass
+let adminAuth: import("firebase-admin/auth").Auth;
+let adminDb: import("firebase-admin/firestore").Firestore;
+
+if (getApps().length > 0) {
+    adminAuth = getAuth();
+    adminDb = getFirestore();
+} else {
+    // Si no se pudo inicializar (ej: build con dummy key), exportamos mocks para que no falle el import
+    console.warn("⚠️ Firebase Admin NO inicializado. Usando mocks seguros.");
+    adminAuth = {} as any;
+    adminDb = {} as any;
+}
+
+export { adminAuth, adminDb };
