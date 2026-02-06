@@ -109,7 +109,8 @@ export default function CallInterface({ onClose }: CallInterfaceProps) {
                     message: text,
                     userId: user.uid,
                     language: profile.language || navigator.language,
-                    googleAccessToken: googleAccessToken
+                    googleAccessToken: googleAccessToken,
+                    mode: 'voice' // Trigger concise, speech-optimized response
                 }),
             });
 

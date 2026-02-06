@@ -213,7 +213,7 @@ export default function ChatComponent() {
     };
 
     return (
-        <div className="flex flex-1 flex-col bg-background text-foreground relative h-[calc(100vh-64px)] lg:h-screen transition-colors duration-500">
+        <div className="flex flex-1 flex-col bg-background text-foreground relative h-full transition-colors duration-500">
 
             {/* Mode Switcher (Tabs) */}
             <div className="flex justify-center p-4 border-b border-border-theme bg-surface/50 backdrop-blur-sm z-10 shrink-0">

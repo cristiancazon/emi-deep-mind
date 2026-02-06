@@ -30,10 +30,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { message, userId, language, googleAccessToken } = await req.json();
+        const { message, userId, language, googleAccessToken, mode } = await req.json();
 
         if (!message || !userId) {
-            return NextResponse.json({ error: "Missing message or userId" }, { status: 400 });
+            return NextResponse.json({ error: "Message and User ID are required" }, { status: 400 });
         }
 
         // Verify token matches requested userId to prevent spoofing
@@ -96,10 +96,7 @@ export async function POST(req: Request) {
 
         const firstName = userName.split(' ')[0]; // Extract first name
 
-        // Use Gemini 2.5 Flash
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            systemInstruction: `Eres ${userConfig?.agentConfig?.name || 'Emi'}, un asistente personal altamente capaz.
+        let systemInstructionText = `Eres ${userConfig?.agentConfig?.name || 'Emi'}, un asistente personal altamente capaz.
                 Estás hablando con: ${firstName} (${decodedToken.email}).
                 
                 PERSONALIDAD:
@@ -160,7 +157,20 @@ export async function POST(req: Request) {
                  * 📍 **Google Maps**: Búsqueda de lugares y direcciones.
                  * 📧 **Gmail**: Lectura y envío de correos.
                  * 📞 **Call Mode**: Interfaz de llamada de voz bidireccional.
-                 * 🎙️ **Live Mode**: Conversación fluida en tiempo real.`,
+                 * 🎙️ **Live Mode**: Conversación fluida en tiempo real.`;
+
+        if (mode === 'voice') {
+            const voiceInstructions = language === 'es' || preferredLanguage === 'es'
+                ? "\n\n[MODO DE VOZ DETECTADO]: El usuario te está hablando por voz. Tu respuesta será leída en voz alta por un sistema TTS. REGLAS ESTRICTAS:\n1. Sé muy conciso y breve (máximo 2-3 oraciones).\n2. NO uses Markdown (nada de **negritas**, # títulos, etc). SOLO TEXTO PLANO.\n3. NO uses listas con viñetas ni enumeraciones complejas.\n4. Habla de forma natural y conversacional.\n5. NO leas URLs ni código."
+                : "\n\n[VOICE MODE DETECTED]: The user is speaking via voice. Your response will be read aloud by TTS. STRICT RULES:\n1. Be very concise and brief (max 2-3 sentences).\n2. DO NOT use Markdown (no **bold**, # headers, etc). PLAIN TEXT ONLY.\n3. DO NOT use bullet points or complex lists.\n4. Speak naturally and conversationally.\n5. DO NOT read URLs or code.";
+
+            systemInstructionText += voiceInstructions;
+        }
+
+        // Use Gemini 2.5 Flash
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            systemInstruction: systemInstructionText,
             tools: [{
                 functionDeclarations: [
                     ...newsTools,

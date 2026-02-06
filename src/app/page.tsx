@@ -33,7 +33,7 @@ export default function Home() {
   if (!user) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-950">
+    <div className="flex h-[100dvh] overflow-hidden bg-gray-950">
       <Sidebar />
       <main className="flex flex-1 flex-col">
         {/* Header could go here if needed, but Sidebar has title */}
