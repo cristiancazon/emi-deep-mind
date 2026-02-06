@@ -29,7 +29,6 @@ ARG NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=455340787036
 ARG NEXT_PUBLIC_FIREBASE_APP_ID=1:455340787036:web:dff23d0c25594565b1ed99
 ARG NEXT_PUBLIC_GEMINI_API_KEY=AIzaSyD3y0CO5JNf-hXEmz1vmMjPPAeB05NkxIc
 
-# Mapear ARGs a ENVs para que Next.js los vea durante 'build'
 ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
 ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID
@@ -38,17 +37,17 @@ ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SEN
 ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
 ENV NEXT_PUBLIC_GEMINI_API_KEY=$NEXT_PUBLIC_GEMINI_API_KEY
 
-# SIMULACRO QUE PASA LA VALIDACIÓN DE FIREBASE (SIN ACTIVAR SECRET SCANNING)
-ENV FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"emi-deepmine","private_key":"-----BEGIN PRIVATE KEY-----\\nPLACEHOLDER_FOR_BUILD_ONLY\\n-----END PRIVATE KEY-----","client_email":"dummy@emi-deepmine.iam.gserviceaccount.com"}'
-
-# DESACTIVAR VALIDACIONES Y TELEMETRÍA DURANTE EL BUILD
+# DESACTIVAR VALIDACIONES Y TELEMETRÍA
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV SKIP_TYPESCRIPT_CHECK true
 ENV SKIP_ESLINT_CHECK true
 
+# LLAVE DUMMY EN UNA SOLA LÍNEA (ESTO PASA EL FILTRO DE FIREBASE)
+ENV FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"emi-deepmine","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDV3YnfmCvfhvbn\n/C/2GroOUV3GxQ+Wrj0k69nQvXX8vayjgWysiz23FMc/oilvijjVzUgV4h3Hl3c3\n-----END PRIVATE KEY-----\n","client_email":"dummy@emi-deepmine.iam.gserviceaccount.com"}'
+
 RUN npm run build
 
-# Production image, copy all the files and run next
+# Production image
 FROM base AS runner
 WORKDIR /app
 
@@ -59,18 +58,15 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 
-# --- AQUÍ ESTABA EL ERROR: AGREGAMOS 'RUN' ---
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
-# Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
 EXPOSE 8080
-
 ENV PORT 8080
 ENV HOSTNAME "0.0.0.0"
 
