@@ -131,7 +131,12 @@ export default function CallInterface({ onClose }: CallInterfaceProps) {
         // Cancel previous speech
         synthRef.current.cancel();
 
-        const utterance = new SpeechSynthesisUtterance(text);
+        // Clean text for speech: remove Markdown links and raw URLs
+        const cleanText = text
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Replace [Link Text](url) with "Link Text"
+            .replace(/https?:\/\/\S+/g, "un enlace"); // Replace bare URLs with "un enlace"
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = profile.language || 'es-ES';
 
         // Find a decent voice

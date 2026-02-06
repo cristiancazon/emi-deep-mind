@@ -54,13 +54,20 @@ export function useGeminiLive() {
                     `${msg.role === 'user' ? 'User' : 'Emi'}: ${msg.content}`
                 ).join('\n');
 
+                const firstName = user.displayName ? user.displayName.split(' ')[0] : 'Usuario';
+
                 const instructions = [
-                    `You are ${profile.agentConfig?.name || 'Emi'}, a helpful AI assistant. You are talking to ${user.displayName || 'User'}.`,
+                    `You are ${profile.agentConfig?.name || 'Emi'}, a helpful AI assistant. You are talking to ${firstName}.`,
                     `Current Context: Language=${profile.language}, Location=${profile.location || 'Unknown'}.`,
                     `User Tags/Preferences: ${profile.tags.join(', ') || 'None'}.`,
                     `Personality/Tone: ${profile.agentConfig?.tone || 'friendly'}.`,
                     `Custom Instructions: ${profile.agentConfig?.customInstructions || 'None'}.`,
                     `IMPORTANT: You MUST speak in ${profile.language === 'es' ? 'Spanish (Español)' : profile.language} at all times, unless asked otherwise.`,
+                    `AUDIO RULES:`,
+                    `1. Use ONLY the user's FIRST NAME (${firstName}).`,
+                    `2. Be CONCISE and DIRECT. Avoid filler phrases like "Thank you for asking" or "I can help with that".`,
+                    `3. DO NOT READ URLs. Instead, say "I sent you a link" or "It's on the map".`,
+                    `4. Keep responses short (1-2 sentences) when possible.`,
                     `CALENDAR ACCESS: You have access to the user's Google Calendar through the list_calendar_events tool. Use this tool to answer questions about their schedule, appointments, and upcoming events.`,
                     `RECENT CHAT HISTORY (For Context):\n${historyContext}`
                 ].join('\n\n');
@@ -72,7 +79,7 @@ export function useGeminiLive() {
                         generation_config: {
                             response_modalities: ["AUDIO"],
                             speech_config: {
-                                voice_config: { prebuilt_voice_config: { voice_name: "Aoede" } }
+                                voice_config: { prebuilt_voice_config: { voice_name: profile.agentConfig?.voice || "Aoede" } }
                             }
                         },
                         system_instruction: {

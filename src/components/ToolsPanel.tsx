@@ -1,10 +1,12 @@
-import { Settings, Hammer, Sun, Moon, Palette, Check } from "lucide-react";
+import { Settings, Hammer, Sun, Moon, Palette, Check, Mic } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useState } from "react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 export default function ToolsPanel() {
     const [isOpen, setIsOpen] = useState(false);
     const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme();
+    const { profile, updateProfile, saveProfile } = useUserProfile();
 
     const colors = [
         { name: "Indigo", value: "#6366f1" },
@@ -96,6 +98,37 @@ export default function ToolsPanel() {
                             </div>
                         </div>
 
+
+                        {/* Call Settings Section */}
+                        <div className="space-y-4 pt-4 border-t border-gray-800">
+                            <div className="flex items-center space-x-2 text-primary">
+                                <Mic className="h-4 w-4" />
+                                <h3 className="text-sm font-semibold uppercase tracking-wider">Call Settings</h3>
+                            </div>
+
+                            {/* Voice Selection */}
+                            <div className="bg-background/50 border border-gray-800 rounded-xl p-4 space-y-3">
+                                <span className="text-xs font-medium text-gray-400">Voice Preference</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {['Aoede', 'Fenrir', 'Puck', 'Kore', 'Charon'].map((v) => (
+                                        <button
+                                            key={v}
+                                            onClick={() => {
+                                                updateProfile({ agentConfig: { ...profile.agentConfig, voice: v as any } });
+                                                saveProfile();
+                                            }}
+                                            className={`py-2 px-3 rounded-md text-xs font-medium transition-all ${(profile.agentConfig?.voice || 'Aoede') === v
+                                                ? 'bg-primary text-white shadow-lg'
+                                                : 'bg-gray-900 text-gray-400 hover:text-gray-200'
+                                                }`}
+                                        >
+                                            {v}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Tools Section (Placeholder) */}
                         <div className="space-y-4 pt-4 border-t border-gray-800">
                             <div className="flex items-center space-x-2 text-gray-400">
@@ -121,21 +154,7 @@ export default function ToolsPanel() {
                                         <Check className="h-3 w-3" /> Ok
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium">Web Search</span>
-                                    <span className="text-xs text-red-400 bg-red-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-red-400/20">
-                                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <line x1="18" y1="6" x2="6" y2="18" />
-                                            <line x1="6" y1="6" x2="18" y2="18" />
-                                        </svg>
-                                        {/* 
-                                          Web Search is currently DISABLED because Google discontinued the 
-                                          "Search the entire web" feature for new Programmable Search Engines.
-                                          See walkthrough.md for alternative solutions (SerpAPI, Brave).
-                                        */}
-                                        Disabled
-                                    </span>
-                                </div>
+
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium">Tasks</span>
                                     <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1 border border-emerald-400/20">

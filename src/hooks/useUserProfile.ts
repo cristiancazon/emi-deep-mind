@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 export interface AgentConfig {
     name: string;
     tone: 'friendly' | 'professional' | 'concise' | 'enthusiastic';
+    voice: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Aoede' | 'Google US English' | 'Google Español';
     customInstructions: string;
 }
 
@@ -23,6 +24,7 @@ const DEFAULT_PROFILE: UserProfile = {
     agentConfig: {
         name: 'Emi',
         tone: 'friendly',
+        voice: 'Aoede', // Default Voice
         customInstructions: ''
     }
 };
