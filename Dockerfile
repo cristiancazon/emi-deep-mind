@@ -41,8 +41,8 @@ ENV NEXT_PUBLIC_GEMINI_API_KEY=$NEXT_PUBLIC_GEMINI_API_KEY
 # ... (donde están tus otros ENVs)
 ENV NEXT_PUBLIC_GEMINI_API_KEY=$NEXT_PUBLIC_GEMINI_API_KEY
 
-# SIMULACRO PARA ENGAÑAR AL VALIDADOR DE FIREBASE DURANTE EL BUILD
-ENV FIREBASE_SERVICE_ACCOUNT='{"project_id":"emi-deepmine","private_key":"dummy","client_email":"dummy"}'
+# SIMULACRO QUE PASA LA VALIDACIÓN PEM DE FIREBASE
+ENV FIREBASE_SERVICE_ACCOUNT='{"project_id":"emi-deepmine","private_key":"-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDV3YnfmCvfhvbn\n-----END PRIVATE KEY-----\n","client_email":"dummy@emi-deepmine.iam.gserviceaccount.com"}'
 
 RUN npm run build
 
