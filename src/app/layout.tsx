@@ -30,7 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <AuthProvider>
+        <AuthProvider geminiApiKey={process.env.GEMINI_API_KEY}>
           <ThemeProvider>
             {children}
           </ThemeProvider>

@@ -10,7 +10,7 @@ import { findRelevantTopic, saveTopicMemory } from "@/lib/memory";
 import { listCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, calendarTools } from "@/lib/tools/calendar";
 import { getGoogleNews, newsTools } from "@/lib/tools/news";
 import { listEmails, searchEmails, createEmailDraft, sendEmail, gmailTools } from "@/lib/tools/gmail";
-import { searchGoogle, searchTools } from "@/lib/tools/search";
+// Google Search removed
 import { listTaskLists, listTasks, addTask, completeTask, tasksTools } from "@/lib/tools/tasks";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
             tools: [{
                 functionDeclarations: [
                     ...newsTools,
-                    ...searchTools,
+                    // searchTools removed
                     ...(googleAccessToken ? [...calendarTools, ...gmailTools, ...tasksTools] : [])
                 ] as any
             }]
@@ -214,9 +214,7 @@ export async function POST(req: Request) {
                         case 'get_google_news':
                             toolResult = await getGoogleNews((args as any).query);
                             break;
-                        case 'search_google':
-                            toolResult = await searchGoogle((args as any).query);
-                            break;
+                        // search_google removed
                         case 'list_emails':
                             toolResult = await listEmails(googleAccessToken, (args as any).maxResults);
                             break;

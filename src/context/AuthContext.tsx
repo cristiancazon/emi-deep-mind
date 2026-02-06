@@ -11,11 +11,12 @@ interface AuthContextType {
     tokenExpiresAt: number | null;
     signInWithGoogle: () => Promise<void>;
     logOut: () => Promise<void>;
+    geminiApiKey: string | undefined;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children, geminiApiKey }: { children: ReactNode; geminiApiKey?: string }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, googleAccessToken, tokenExpiresAt, signInWithGoogle, logOut }}>
+        <AuthContext.Provider value={{ user, loading, googleAccessToken, tokenExpiresAt, signInWithGoogle, logOut, geminiApiKey }}>
             {children}
         </AuthContext.Provider>
     );

@@ -4,7 +4,7 @@ import { useUserProfile } from './useUserProfile';
 import { calendarToolDeclaration, listCalendarEvents } from '@/lib/tools/calendar';
 
 export function useGeminiLive() {
-    const { user, googleAccessToken } = useAuth();
+    const { user, googleAccessToken, geminiApiKey } = useAuth();
     const { profile } = useUserProfile(); // Get active profile context
     const [isStreaming, setIsStreaming] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
@@ -35,7 +35,15 @@ export function useGeminiLive() {
                 sampleRate: 24000
             });
 
-            const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+            // FIXED: Use runtime injected key from AuthContext
+            const apiKey = geminiApiKey;
+
+            if (!apiKey) {
+                console.error("No Gemini API Key found in context!");
+                setError("Configuration Error: Missing API Key");
+                return;
+            }
+
             const ws = new WebSocket(`wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`);
 
             wsRef.current = ws;
@@ -88,7 +96,7 @@ export function useGeminiLive() {
                             }]
                         },
                         tools: [
-                            { google_search: {} }, // Built-in
+                            // search removed
                             { function_declarations: [calendarToolDeclaration] } // Custom
                         ]
                     }
